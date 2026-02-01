@@ -1,0 +1,158 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:google_fonts/google_fonts.dart';
+
+import 'package:soliel/core/theming/colors_manger.dart';
+import 'package:soliel/core/theming/font_weight_helper.dart';
+
+class TextStyles {
+  // Primary Gradient Start Color Text Styles
+  static TextStyle font24PrimaryGradientStartSemiBold = GoogleFonts.poppins(
+    fontSize: 24.sp,
+    fontWeight: FontWeightHelper.semiBold,
+    color: ColorsManager.primaryGradientStart,
+  );
+
+  static TextStyle font20PrimaryGradientStartSemiBold = GoogleFonts.poppins(
+    fontSize: 20.sp,
+    fontWeight: FontWeightHelper.semiBold,
+    color: ColorsManager.primaryGradientStart,
+  );
+
+  static TextStyle font18PrimaryGradientStartMedium = GoogleFonts.poppins(
+    fontSize: 18.sp,
+    fontWeight: FontWeightHelper.medium,
+    color: ColorsManager.primaryGradientStart,
+  );
+
+  static TextStyle font16PrimaryGradientStartMedium = GoogleFonts.poppins(
+    fontSize: 16.sp,
+    fontWeight: FontWeightHelper.medium,
+    color: ColorsManager.primaryGradientStart,
+  );
+
+  static TextStyle font14PrimaryGradientStartMedium = GoogleFonts.poppins(
+    fontSize: 14.sp,
+    fontWeight: FontWeightHelper.medium,
+    color: ColorsManager.primaryGradientStart,
+  );
+
+  static TextStyle font14PrimaryGradientStartRegular = GoogleFonts.poppins(
+    fontSize: 14.sp,
+    fontWeight: FontWeightHelper.regular,
+    color: ColorsManager.primaryGradientStart,
+  );
+
+  static TextStyle font12PrimaryGradientStartSemiBold = GoogleFonts.poppins(
+    fontSize: 12.sp,
+    fontWeight: FontWeightHelper.semiBold,
+    color: ColorsManager.primaryGradientStart,
+  );
+
+  // Black Text Styles
+  static TextStyle font20BlackSemiBold = GoogleFonts.poppins(
+    fontSize: 20.sp,
+    fontWeight: FontWeightHelper.semiBold,
+    color: ColorsManager.black,
+  );
+
+  static TextStyle font18BlackMedium = GoogleFonts.poppins(
+    fontSize: 18.sp,
+    fontWeight: FontWeightHelper.medium,
+    color: ColorsManager.black,
+  );
+
+  static TextStyle font16BlackRegular = GoogleFonts.poppins(
+    fontSize: 16.sp,
+    fontWeight: FontWeightHelper.regular,
+    color: ColorsManager.black,
+  );
+
+  static TextStyle font16BlackMedium = GoogleFonts.poppins(
+    fontSize: 16.sp,
+    fontWeight: FontWeightHelper.medium,
+    color: ColorsManager.black,
+  );
+
+  static TextStyle font14BlackMedium = GoogleFonts.poppins(
+    fontSize: 14.sp,
+    fontWeight: FontWeightHelper.medium,
+    color: ColorsManager.black,
+  );
+
+  static TextStyle font14BlackRegular = GoogleFonts.poppins(
+    fontSize: 14.sp,
+    fontWeight: FontWeightHelper.regular,
+    color: ColorsManager.black,
+  );
+
+  static TextStyle font14BlackSemiBold = GoogleFonts.poppins(
+    fontSize: 14.sp,
+    fontWeight: FontWeightHelper.semiBold,
+    color: ColorsManager.black,
+  );
+
+  static TextStyle font14BlackLight = GoogleFonts.poppins(
+    fontSize: 14.sp,
+    fontWeight: FontWeightHelper.light,
+    color: ColorsManager.black,
+  );
+
+  static TextStyle font12BlackMedium = GoogleFonts.poppins(
+    fontSize: 12.sp,
+    fontWeight: FontWeightHelper.medium,
+    color: ColorsManager.black,
+  );
+
+  static TextStyle font12BlackRegular = GoogleFonts.poppins(
+    fontSize: 12.sp,
+    fontWeight: FontWeightHelper.regular,
+    color: ColorsManager.black,
+  );
+
+  // Grey Text Styles
+  static TextStyle font14GreyRegular = GoogleFonts.poppins(
+    fontSize: 14.sp,
+    fontWeight: FontWeightHelper.regular,
+    color: ColorsManager.grey,
+  );
+
+  static TextStyle font12GreyMedium = GoogleFonts.poppins(
+    fontSize: 12.sp,
+    fontWeight: FontWeightHelper.medium,
+    color: ColorsManager.grey,
+  );
+
+  static TextStyle font12GreyLight = GoogleFonts.poppins(
+    fontSize: 12.sp,
+    fontWeight: FontWeightHelper.light,
+    color: ColorsManager.grey,
+  );
+
+  // White Text Styles
+  static TextStyle font16WhiteSemiBold = GoogleFonts.poppins(
+    fontSize: 16.sp,
+    fontWeight: FontWeightHelper.semiBold,
+    color: ColorsManager.white,
+  );
+
+  // Status Colors Text Styles
+  static TextStyle font12GreenRegular = GoogleFonts.poppins(
+    fontSize: 12.sp,
+    fontWeight: FontWeightHelper.regular,
+    color: ColorsManager.green,
+  );
+
+  static TextStyle font12RedRegular = GoogleFonts.poppins(
+    fontSize: 12.sp,
+    fontWeight: FontWeightHelper.regular,
+    color: ColorsManager.red,
+  );
+
+  // Secondary Blue Text Styles
+  static TextStyle font14SecondaryBlueRegular = GoogleFonts.poppins(
+    fontSize: 14.sp,
+    fontWeight: FontWeightHelper.regular,
+    color: ColorsManager.secondaryBlue,
+  );
+}
