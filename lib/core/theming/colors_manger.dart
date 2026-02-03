@@ -8,6 +8,7 @@ class ColorsManager {
   // Secondary Colors
   static const Color secondaryBlue = Color(0xFFCADCF0);
   static const Color lightPurple = Color(0xFFFDF1EF);
+  static const Color lightBlue = Color(0xFFE4EDF7);
 
   // Basic Colors
   static const Color white = Color(0xFFFFFFFF);

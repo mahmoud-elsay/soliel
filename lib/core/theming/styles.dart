@@ -7,6 +7,12 @@ import 'package:soliel/core/theming/font_weight_helper.dart';
 
 class TextStyles {
   // Primary Gradient Start Color Text Styles
+  static TextStyle font24PrimaryGradientStartSemiExtraBold =
+      GoogleFonts.poppins(
+        fontSize: 24.sp,
+        fontWeight: FontWeightHelper.extraBold,
+        color: ColorsManager.primaryGradientStart,
+      );
   static TextStyle font24PrimaryGradientStartSemiBold = GoogleFonts.poppins(
     fontSize: 24.sp,
     fontWeight: FontWeightHelper.semiBold,
