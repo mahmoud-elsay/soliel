@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:soliel/core/helpers/extensions.dart';
+import 'package:soliel/core/routing/routes.dart';
 import 'package:soliel/core/theming/colors_manger.dart';
-import 'package:soliel/core/theming/styles.dart';
+import 'package:soliel/core/widgets/app_text_button.dart';
 import 'package:soliel/features/onboarding/model/onboarding_model.dart';
 import 'package:soliel/features/onboarding/widgets/onboarding_indicator.dart';
 import 'package:soliel/features/onboarding/widgets/onboarding_page_content.dart';
@@ -29,7 +31,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
       );
-    } else {}
+    } else {
+      context.pushReplacementNamed(Routes.selectRoleScreen);
+    }
   }
 
   void _skipOnboarding() {
@@ -74,47 +78,30 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 SizedBox(height: 32.h),
 
                 // Continue / Start Button
-                Container(
-                  width: double.infinity,
-                  height: 52.h,
-                  decoration: BoxDecoration(
-                    gradient: ColorsManager.primaryGradient,
-                    borderRadius: BorderRadius.circular(12.r),
-                  ),
-                  child: ElevatedButton(
-                    onPressed: _nextPage,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.transparent,
-                      shadowColor: Colors.transparent,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12.r),
-                      ),
-                    ),
-                    child: Text(
+                AppTextButton(
+                  onPressed: _nextPage,
+                  textButton:
                       _currentPage == OnboardingModel.onboardingPages.length - 1
-                          ? 'يلا نبدأ'
-                          : 'استمر',
-                      style: TextStyles.font16WhiteSemiBold,
-                    ),
-                  ),
+                      ? 'يلا نبدأ'
+                      : 'استمر',
+                  gradient: ColorsManager.primaryGradient,
+                  height: 52.h,
+                  borderRadius: 12.r,
+                  margin: EdgeInsets.zero,
                 ),
 
                 SizedBox(height: 16.h),
 
                 // Skip Button
-                SizedBox(
-                  width: double.infinity,
+                AppTextButton(
+                  onPressed: _skipOnboarding,
+                  textButton: 'تخطي',
+                  backgroundColor: ColorsManager.lightPurple,
+                  textColor: ColorsManager.black,
                   height: 52.h,
-                  child: TextButton(
-                    onPressed: _skipOnboarding,
-                    style: TextButton.styleFrom(
-                      backgroundColor: ColorsManager.lightPurple,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12.r),
-                      ),
-                    ),
-                    child: Text('تخطي', style: TextStyles.font14BlackMedium),
-                  ),
+                  borderRadius: 12.r,
+                  margin: EdgeInsets.zero,
+                  fontSize: 14.sp,
                 ),
               ],
             ),

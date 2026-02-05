@@ -129,10 +129,22 @@ class TextStyles {
     color: ColorsManager.grey,
   );
 
+  static TextStyle font14GreyMedium = GoogleFonts.poppins(
+    fontSize: 14.sp,
+    fontWeight: FontWeightHelper.medium,
+    color: ColorsManager.grey,
+  );
+
   static TextStyle font12GreyLight = GoogleFonts.poppins(
     fontSize: 12.sp,
     fontWeight: FontWeightHelper.light,
     color: ColorsManager.grey,
+  );
+
+  static TextStyle font15DarkGreyMedium = GoogleFonts.poppins(
+    fontSize: 15.sp,
+    fontWeight: FontWeightHelper.medium,
+    color: ColorsManager.darkGrey,
   );
 
   // White Text Styles

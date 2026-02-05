@@ -161,7 +161,7 @@ class _SplashScreenState extends State<SplashScreen>
                               Routes.onBoardingScreen,
                             );
                           },
-                          backgroundColor: ColorsManager.primaryGradientStart,
+                          gradient: ColorsManager.primaryGradient,
                           textColor: ColorsManager.white,
                           height: 52.h,
                         ),

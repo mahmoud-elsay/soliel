@@ -3,7 +3,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:soliel/core/theming/colors_manger.dart';
 import 'package:soliel/core/theming/styles.dart';
 
-class AppTextFormField extends StatelessWidget {
+class SolidTextFormField extends StatelessWidget {
   final EdgeInsetsGeometry? contentPadding;
   final InputBorder? focusedBorder;
   final InputBorder? enabledBorder;
@@ -31,7 +31,7 @@ class AppTextFormField extends StatelessWidget {
   final int? maxLines;
   final int? minLines;
 
-  const AppTextFormField({
+  const SolidTextFormField({
     super.key,
     this.contentPadding,
     this.focusedBorder,
@@ -64,8 +64,8 @@ class AppTextFormField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 343.w,
-      height: 48.h,
+      width: 331.w,
+      height: 56.h,
       child: TextFormField(
         cursorColor: ColorsManager.primaryGradientStart,
         controller: controller,
@@ -85,16 +85,16 @@ class AppTextFormField extends StatelessWidget {
         onSaved: onSaved,
         maxLines: maxLines ?? 1,
         minLines: minLines ?? 1,
-        style: inputTextStyle ?? TextStyles.font14GreyMedium,
+        style: inputTextStyle ?? TextStyles.font15DarkGreyMedium,
         autofillHints: autofillHints,
         decoration: InputDecoration(
           isDense: true,
           contentPadding:
               contentPadding ??
-              EdgeInsets.symmetric(horizontal: 16.w, vertical: 14.h),
+              EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
           enabledBorder:
               enabledBorder ??
-              buildOutlineInputBorder(color: ColorsManager.secondaryBlue),
+              buildOutlineInputBorder(color: ColorsManager.greyBorderColor),
           focusedBorder:
               focusedBorder ??
               buildOutlineInputBorder(
@@ -102,7 +102,7 @@ class AppTextFormField extends StatelessWidget {
               ),
           focusedErrorBorder: buildOutlineInputBorder(color: ColorsManager.red),
           errorBorder: buildOutlineInputBorder(color: ColorsManager.red),
-          hintStyle: hintStyle ?? TextStyles.font14GreyMedium,
+          hintStyle: hintStyle ?? TextStyles.font15DarkGreyMedium,
           hintText: hintText,
           suffixIcon: suffixIcon,
           prefixIcon: prefixIcon != null
@@ -111,7 +111,7 @@ class AppTextFormField extends StatelessWidget {
                   child: prefixIcon,
                 )
               : null,
-          fillColor: backgroundColor ?? ColorsManager.white,
+          fillColor: backgroundColor ?? ColorsManager.solidLightBlue,
           filled: true,
         ),
       ),

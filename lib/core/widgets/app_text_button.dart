@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:soliel/core/theming/colors_manger.dart';
 import 'package:soliel/core/theming/font_weight_helper.dart';
+import 'package:soliel/core/widgets/app_gradient_text.dart';
 
 import '../theming/styles.dart';
 
@@ -12,6 +13,7 @@ class AppTextButton extends StatelessWidget {
   final Color? backgroundColor;
   final Color? borderColor;
   final Color? textColor;
+  final Gradient? textGradient; // New parameter for gradient text
   final Color? disabledBackgroundColor;
   final Color? disabledTextColor;
   final double? width;
@@ -30,6 +32,7 @@ class AppTextButton extends StatelessWidget {
     this.backgroundColor,
     this.borderColor,
     this.textColor,
+    this.textGradient, // New parameter
     this.disabledBackgroundColor,
     this.disabledTextColor,
     this.width,
@@ -51,11 +54,9 @@ class AppTextButton extends StatelessWidget {
         width: width ?? double.infinity,
         height: height ?? 56.h,
         decoration: BoxDecoration(
-          gradient: isEnabled
-              ? (gradient ?? ColorsManager.primaryGradient)
-              : null,
+          gradient: isEnabled && gradient != null ? gradient : null,
           color: isEnabled
-              ? (gradient == null ? backgroundColor : null)
+              ? backgroundColor
               : (disabledBackgroundColor ??
                     ColorsManager.grey.withOpacity(0.3)),
           borderRadius: BorderRadius.circular(borderRadius ?? 8.r),
@@ -74,22 +75,34 @@ class AppTextButton extends StatelessWidget {
             child: Container(
               padding: padding ?? EdgeInsets.symmetric(vertical: 16.h),
               alignment: Alignment.center,
-              child: Text(
-                textButton,
-                style: TextStyles.font16WhiteSemiBold.copyWith(
-                  color: isEnabled
-                      ? (textColor ?? ColorsManager.white)
-                      : (disabledTextColor ??
-                            ColorsManager.white.withOpacity(0.5)),
-                  fontSize: fontSize ?? 16.sp,
-                  fontWeight: fontWeight ?? FontWeightHelper.semiBold,
-                ),
-                textAlign: TextAlign.center,
-              ),
+              child: _buildText(isEnabled),
             ),
           ),
         ),
       ),
     );
+  }
+
+  Widget _buildText(bool isEnabled) {
+    final textWidget = Text(
+      textButton,
+      style: TextStyles.font16WhiteSemiBold.copyWith(
+        color: isEnabled
+            ? (textGradient != null
+                  ? null // No color when using gradient
+                  : (textColor ?? ColorsManager.white))
+            : (disabledTextColor ?? ColorsManager.white.withOpacity(0.5)),
+        fontSize: fontSize ?? 16.sp,
+        fontWeight: fontWeight ?? FontWeightHelper.semiBold,
+      ),
+      textAlign: TextAlign.center,
+    );
+
+    // If textGradient is provided and button is enabled, wrap with AppGradientText
+    if (isEnabled && textGradient != null) {
+      return AppGradientText(gradient: textGradient!, child: textWidget);
+    }
+
+    return textWidget;
   }
 }
