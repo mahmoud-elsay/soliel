@@ -98,7 +98,6 @@ class AppTextButton extends StatelessWidget {
       textAlign: TextAlign.center,
     );
 
-    // If textGradient is provided and button is enabled, wrap with AppGradientText
     if (isEnabled && textGradient != null) {
       return AppGradientText(gradient: textGradient!, child: textWidget);
     }

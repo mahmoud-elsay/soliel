@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:soliel/core/routing/routes.dart';
-import 'package:soliel/features/auth/login/screens/login_screen.dart';
+import 'package:soliel/features/auth/login/ui/screens/login_screen.dart';
 import 'package:soliel/features/onboarding/screens/onboarding_screen.dart';
 import 'package:soliel/features/onboarding/screens/select_role_screen.dart';
 import 'package:soliel/features/splash/splash_screen.dart';

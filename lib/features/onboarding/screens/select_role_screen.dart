@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:soliel/core/helpers/extensions.dart';
 import 'package:soliel/core/helpers/spacing.dart';
+import 'package:soliel/core/routing/routes.dart';
 import 'package:soliel/core/theming/colors_manger.dart';
 import 'package:soliel/core/widgets/app_text_button.dart';
 
@@ -26,13 +28,11 @@ class SelectRoleScreen extends StatelessWidget {
           child: Column(
             children: [
               const Spacer(flex: 2),
-              // Logo with سوليل text
               SvgPicture.asset('assets/svgs/blue_app_logo.svg', height: 120.h),
               const Spacer(flex: 3),
-              // Doctor Button
               AppTextButton(
                 onPressed: () {
-                  // Navigate to doctor flow
+                  context.pushNamed(Routes.loginScreen);
                 },
                 textButton: 'دكتور',
                 gradient: ColorsManager.primaryGradient,
@@ -43,7 +43,7 @@ class SelectRoleScreen extends StatelessWidget {
               // Parent/Guardian Button with Gradient Text
               AppTextButton(
                 onPressed: () {
-                  // Navigate to parent flow
+                  context.pushNamed(Routes.loginScreen);
                 },
                 textButton: 'ولي الامر',
                 backgroundColor: ColorsManager.lightBlue,

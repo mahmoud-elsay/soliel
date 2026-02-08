@@ -6,13 +6,75 @@ import 'package:soliel/core/theming/colors_manger.dart';
 import 'package:soliel/core/theming/font_weight_helper.dart';
 
 class TextStyles {
-  // Primary Gradient Start Color Text Styles
+  // Gradient Text Styles (use with AppGradientText widget)
+  static TextStyle font30GradientBold = GoogleFonts.poppins(
+    fontSize: 30.sp,
+    fontWeight: FontWeightHelper.bold,
+    color: Colors.white, // Color will be replaced by gradient
+  );
+
+  static TextStyle font24GradientExtraBold = GoogleFonts.poppins(
+    fontSize: 24.sp,
+    fontWeight: FontWeightHelper.extraBold,
+    color: Colors.white, // Color will be replaced by gradient
+  );
+
+  static TextStyle font24GradientSemiBold = GoogleFonts.poppins(
+    fontSize: 24.sp,
+    fontWeight: FontWeightHelper.semiBold,
+    color: Colors.white, // Color will be replaced by gradient
+  );
+
+  static TextStyle font20GradientSemiBold = GoogleFonts.poppins(
+    fontSize: 20.sp,
+    fontWeight: FontWeightHelper.semiBold,
+    color: Colors.white, // Color will be replaced by gradient
+  );
+
+  static TextStyle font18GradientMedium = GoogleFonts.poppins(
+    fontSize: 18.sp,
+    fontWeight: FontWeightHelper.medium,
+    color: Colors.white, // Color will be replaced by gradient
+  );
+
+  static TextStyle font16GradientMedium = GoogleFonts.poppins(
+    fontSize: 16.sp,
+    fontWeight: FontWeightHelper.medium,
+    color: Colors.white, // Color will be replaced by gradient
+  );
+
+  static TextStyle font15GradientBold = GoogleFonts.poppins(
+    fontSize: 15.sp,
+    fontWeight: FontWeightHelper.bold,
+    color: Colors.white, // Color will be replaced by gradient
+  );
+
+  static TextStyle font14GradientMedium = GoogleFonts.poppins(
+    fontSize: 14.sp,
+    fontWeight: FontWeightHelper.medium,
+    color: Colors.white, // Color will be replaced by gradient
+  );
+
+  static TextStyle font14GradientRegular = GoogleFonts.poppins(
+    fontSize: 14.sp,
+    fontWeight: FontWeightHelper.regular,
+    color: Colors.white, // Color will be replaced by gradient
+  );
+
+  static TextStyle font12GradientSemiBold = GoogleFonts.poppins(
+    fontSize: 12.sp,
+    fontWeight: FontWeightHelper.semiBold,
+    color: Colors.white, // Color will be replaced by gradient
+  );
+
+  // Primary Gradient Start Color Text Styles (solid color)
   static TextStyle font24PrimaryGradientStartSemiExtraBold =
       GoogleFonts.poppins(
         fontSize: 24.sp,
         fontWeight: FontWeightHelper.extraBold,
         color: ColorsManager.primaryGradientStart,
       );
+
   static TextStyle font24PrimaryGradientStartSemiBold = GoogleFonts.poppins(
     fontSize: 24.sp,
     fontWeight: FontWeightHelper.semiBold,
@@ -104,6 +166,12 @@ class TextStyles {
     color: ColorsManager.black,
   );
 
+  static TextStyle font15DarkBlueBold = GoogleFonts.poppins(
+    fontSize: 15.sp,
+    fontWeight: FontWeightHelper.bold,
+    color: ColorsManager.darkBlue,
+  );
+
   static TextStyle font12BlackMedium = GoogleFonts.poppins(
     fontSize: 12.sp,
     fontWeight: FontWeightHelper.medium,
@@ -145,6 +213,12 @@ class TextStyles {
     fontSize: 15.sp,
     fontWeight: FontWeightHelper.medium,
     color: ColorsManager.darkGrey,
+  );
+
+  static TextStyle font14MoreDarkGreySemiBold = GoogleFonts.poppins(
+    fontSize: 14.sp,
+    fontWeight: FontWeightHelper.semiBold,
+    color: ColorsManager.moreDarkGrey,
   );
 
   // White Text Styles

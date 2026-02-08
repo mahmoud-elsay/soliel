@@ -10,6 +10,7 @@ class ColorsManager {
   static const Color lightPurple = Color(0xFFFDF1EF);
   static const Color lightBlue = Color(0xFFE4EDF7);
   static const Color solidLightBlue = Color(0xFFF7F8F9);
+  static const Color darkBlue = Color(0xFF1E232C);
 
   // Basic Colors
   static const Color white = Color(0xFFFFFFFF);
@@ -17,6 +18,7 @@ class ColorsManager {
   static const Color grey = Color(0xFF6D6D6D);
   static const Color darkGrey = Color(0xFF8391A1);
   static const Color greyBorderColor = Color(0xFFE8ECF4);
+  static const Color moreDarkGrey = Color(0xFF6A707C);
 
   // Status Colors
   static const Color red = Color(0xFFB30303);

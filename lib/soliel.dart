@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:soliel/core/routing/app_router.dart';
 import 'package:soliel/core/routing/routes.dart';
 import 'package:soliel/core/theming/colors_manger.dart';
@@ -35,7 +36,11 @@ class Soliel extends StatelessWidget {
           ),
 
           // Arabic support + RTL
-          locale: const Locale('ar'),
+          localizationsDelegates: const [
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
           supportedLocales: const [Locale('ar')],
 
           builder: (context, child) {
@@ -45,7 +50,7 @@ class Soliel extends StatelessWidget {
             );
           },
 
-          initialRoute: Routes.splashScreen,
+          initialRoute: Routes.loginScreen,
 
           onGenerateRoute: appRouter.generateRoute,
         );
