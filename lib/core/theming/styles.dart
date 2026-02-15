@@ -117,6 +117,12 @@ class TextStyles {
     color: ColorsManager.primaryGradientStart,
   );
 
+  static TextStyle font12SkyBlueStartSemiBold = GoogleFonts.poppins(
+    fontSize: 12.sp,
+    fontWeight: FontWeightHelper.semiBold,
+    color: ColorsManager.skyBlue,
+  );
+
   // Black Text Styles
   static TextStyle font20BlackSemiBold = GoogleFonts.poppins(
     fontSize: 20.sp,
@@ -209,6 +215,11 @@ class TextStyles {
     color: ColorsManager.grey,
   );
 
+  static TextStyle font12LightGreyRegular = GoogleFonts.poppins(
+    fontSize: 12.sp,
+    fontWeight: FontWeightHelper.regular,
+    color: ColorsManager.lightGrey,
+  );
   static TextStyle font15DarkGreyMedium = GoogleFonts.poppins(
     fontSize: 15.sp,
     fontWeight: FontWeightHelper.medium,

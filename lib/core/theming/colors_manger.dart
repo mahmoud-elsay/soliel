@@ -11,11 +11,13 @@ class ColorsManager {
   static const Color lightBlue = Color(0xFFE4EDF7);
   static const Color solidLightBlue = Color(0xFFF7F8F9);
   static const Color darkBlue = Color(0xFF1E232C);
+  static const Color skyBlue = Color(0xff0EA5E9);
 
   // Basic Colors
   static const Color white = Color(0xFFFFFFFF);
   static const Color black = Color(0xFF27252E);
   static const Color grey = Color(0xFF6D6D6D);
+  static const Color lightGrey = Color(0xFFA3A3A3);
   static const Color darkGrey = Color(0xFF8391A1);
   static const Color greyBorderColor = Color(0xFFE8ECF4);
   static const Color moreDarkGrey = Color(0xFF6A707C);

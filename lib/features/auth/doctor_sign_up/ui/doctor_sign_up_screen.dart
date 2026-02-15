@@ -1,17 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:soliel/core/helpers/extensions.dart';
 import 'package:soliel/core/helpers/spacing.dart';
-import 'package:soliel/core/routing/routes.dart';
 import 'package:soliel/core/theming/colors_manger.dart';
 import 'package:soliel/core/theming/styles.dart';
 import 'package:soliel/core/widgets/app_gradient_text.dart';
-import 'package:soliel/core/widgets/or_divider.dart';
-import 'package:soliel/core/widgets/social_media_buttons.dart';
-import 'package:soliel/features/auth/login/ui/widgets/login_form.dart';
+import 'package:soliel/features/auth/doctor_sign_up/ui/widgets/doctor_sign_up_form.dart';
 
-class LoginScreen extends StatelessWidget {
-  const LoginScreen({super.key});
+class DoctorSignUpScreen extends StatelessWidget {
+  const DoctorSignUpScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -20,15 +16,18 @@ class LoginScreen extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: ColorsManager.white,
         elevation: 0,
-        leading: IconButton(
-          icon: Icon(
-            Icons.arrow_forward_ios,
-            color: ColorsManager.primaryGradientStart,
+        automaticallyImplyLeading: false,
+        actions: [
+          IconButton(
+            icon: Icon(
+              Icons.arrow_forward_ios,
+              color: ColorsManager.primaryGradientStart,
+            ),
+            onPressed: () {
+              Navigator.pop(context);
+            },
           ),
-          onPressed: () {
-            Navigator.pop(context);
-          },
-        ),
+        ],
       ),
       body: SafeArea(
         child: Padding(
@@ -42,28 +41,18 @@ class LoginScreen extends StatelessWidget {
                     children: [
                       verticalSpace(20),
 
-                      // Welcome Title with Gradient - Aligned to the right
                       AppGradientText(
                         gradient: ColorsManager.primaryGradient,
                         child: Text(
-                          'مرحبا بك! مره ثانيه....',
+                          'مرحبا، سجل الآن للبدء',
                           style: TextStyles.font30GradientBold,
-                          textAlign: TextAlign.right,
+                          textAlign: TextAlign.start,
                         ),
                       ),
 
-                      verticalSpace(80),
-
-                      // Login Form
-                      const LoginForm(),
-
                       verticalSpace(40),
 
-                      const OrDivider(),
-
-                      verticalSpace(32),
-
-                      const SocialMediaButtons(),
+                      const DoctorSignUpForm(),
 
                       verticalSpace(24),
                     ],
@@ -71,14 +60,18 @@ class LoginScreen extends StatelessWidget {
                 ),
               ),
 
-              // Sign up link at the bottom
+              // Login link at the bottom
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text('ليس لديك حساب؟ ', style: TextStyles.font15DarkBlueBold),
+                  Text(
+                    'بالفعل لديك اكونت؟ ',
+                    style: TextStyles.font14BlackRegular,
+                  ),
                   TextButton(
                     onPressed: () {
-                      context.pushNamed(Routes.doctorSignUpScreen);
+                      // Navigate to login
+                      Navigator.pop(context);
                     },
                     style: TextButton.styleFrom(
                       padding: EdgeInsets.zero,
@@ -89,7 +82,7 @@ class LoginScreen extends StatelessWidget {
                       gradient: ColorsManager.primaryGradient,
                       child: Text(
                         'سجل الآن',
-                        style: TextStyles.font15GradientBold,
+                        style: TextStyles.font14GradientMedium,
                       ),
                     ),
                   ),

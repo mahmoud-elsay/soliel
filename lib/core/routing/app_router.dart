@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:soliel/core/routing/routes.dart';
+import 'package:soliel/features/auth/doctor_sign_up/ui/doctor_sign_up_screen.dart';
 import 'package:soliel/features/auth/login/ui/screens/login_screen.dart';
+import 'package:soliel/features/auth/parent_sign_up/ui/parent_sign_up_screen.dart';
 import 'package:soliel/features/onboarding/screens/onboarding_screen.dart';
 import 'package:soliel/features/onboarding/screens/select_role_screen.dart';
 import 'package:soliel/features/splash/splash_screen.dart';
@@ -19,6 +21,12 @@ class AppRouter {
 
       case Routes.loginScreen:
         return MaterialPageRoute(builder: (_) => const LoginScreen());
+
+      case Routes.doctorSignUpScreen:
+        return MaterialPageRoute(builder: (_) => const DoctorSignUpScreen());
+
+      case Routes.parentSignUpScreen:
+        return MaterialPageRoute(builder: (_) => const ParentSignUpScreen());
       default:
         return MaterialPageRoute(
           builder: (_) => Scaffold(

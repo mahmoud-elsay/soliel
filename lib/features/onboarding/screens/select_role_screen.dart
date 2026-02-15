@@ -52,6 +52,16 @@ class SelectRoleScreen extends StatelessWidget {
                 borderRadius: 12.r,
               ),
               verticalSpace(40),
+              AppTextButton(
+                onPressed: () {
+                  context.pushNamed(Routes.loginScreen);
+                },
+                textButton: ' الموقع الالكتروني',
+                backgroundColor: ColorsManager.lightBlue,
+                textGradient: ColorsManager.primaryGradient,
+                height: 56.h,
+                borderRadius: 12.r,
+              ),
             ],
           ),
         ),
