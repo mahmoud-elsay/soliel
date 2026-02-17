@@ -232,6 +232,12 @@ class TextStyles {
     color: ColorsManager.moreDarkGrey,
   );
 
+  static TextStyle font14MoreDarkGreyMedium = GoogleFonts.poppins(
+    fontSize: 14.sp,
+    fontWeight: FontWeightHelper.medium,
+    color: ColorsManager.moreDarkGrey,
+  );
+
   // White Text Styles
   static TextStyle font16WhiteSemiBold = GoogleFonts.poppins(
     fontSize: 16.sp,

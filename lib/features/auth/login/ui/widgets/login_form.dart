@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:soliel/core/helpers/extensions.dart';
 import 'package:soliel/core/helpers/spacing.dart';
+import 'package:soliel/core/routing/routes.dart';
 import 'package:soliel/core/theming/styles.dart';
 import 'package:soliel/core/widgets/app_text_button.dart';
 import 'package:soliel/core/widgets/solid_text_form_field.dart';
@@ -66,7 +68,7 @@ class _LoginFormState extends State<LoginForm> {
             padding: EdgeInsets.symmetric(horizontal: 24.w),
             child: TextButton(
               onPressed: () {
-                // Navigate to forgot password
+                context.pushNamed(Routes.resetPasswordScreen);
               },
               style: TextButton.styleFrom(
                 padding: EdgeInsets.zero,
