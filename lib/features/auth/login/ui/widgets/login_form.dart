@@ -87,7 +87,7 @@ class _LoginFormState extends State<LoginForm> {
         // Login Button
         AppTextButton(
           onPressed: () {
-            // Handle login
+            context.pushNamed(Routes.doctorProfileScreen);
           },
           textButton: 'تسجيل',
           gradient: ColorsManager.primaryGradient,

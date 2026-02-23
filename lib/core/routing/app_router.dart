@@ -5,6 +5,8 @@ import 'package:soliel/features/auth/login/ui/screens/login_screen.dart';
 import 'package:soliel/features/auth/parent_sign_up/ui/parent_sign_up_screen.dart';
 import 'package:soliel/features/auth/reset_password/ui/screens/reset_password_done_screen.dart';
 import 'package:soliel/features/auth/reset_password/ui/screens/reset_password_screen.dart';
+import 'package:soliel/features/doctor_profile/ui/screens/doctor_profile_screen.dart';
+import 'package:soliel/features/doctor_profile/ui/screens/edit_profile_screen.dart';
 import 'package:soliel/features/onboarding/screens/onboarding_screen.dart';
 import 'package:soliel/features/onboarding/screens/select_role_screen.dart';
 import 'package:soliel/features/splash/splash_screen.dart';
@@ -37,6 +39,11 @@ class AppRouter {
         return MaterialPageRoute(
           builder: (_) => const ResetPasswordDoneScreen(),
         );
+      case Routes.doctorProfileScreen:
+        return MaterialPageRoute(builder: (_) => const DoctorProfileScreen());
+
+      case Routes.editProfileScreen:
+        return MaterialPageRoute(builder: (_) => const EditProfileScreen());
       default:
         return MaterialPageRoute(
           builder: (_) => Scaffold(

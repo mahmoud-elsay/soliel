@@ -6,6 +6,8 @@ class Routes {
   static const String doctorSignUpScreen = 'doctorSignUpScreen';
   static const String parentSignUpScreen = 'parentSignUpScreen';
   static const String appLayout = 'appLayout';
+  static const String doctorProfileScreen = 'doctorProfileScreen';
+  static const String editProfileScreen = 'editProfileScreen';
 
   static const String resetPasswordScreen = 'resetPasswordScreen';
   static const String resetPasswordDoneScreen = 'resetPasswordDoneScreen';

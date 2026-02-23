@@ -178,6 +178,42 @@ class TextStyles {
     color: ColorsManager.darkBlue,
   );
 
+  static TextStyle font22GradientSemiBold = GoogleFonts.poppins(
+    fontSize: 22.sp,
+    fontWeight: FontWeightHelper.semiBold,
+    color: Colors.white, // Color will be replaced by gradient
+  );
+
+  static TextStyle font18BlackSemiBold = GoogleFonts.poppins(
+    fontSize: 18.sp,
+    fontWeight: FontWeightHelper.semiBold,
+    color: ColorsManager.black,
+  );
+
+  static TextStyle font16SolidDarkBlueMedium = GoogleFonts.poppins(
+    fontSize: 16.sp,
+    fontWeight: FontWeightHelper.medium,
+    color: ColorsManager.solidDarkBlue,
+  );
+
+  static TextStyle font12MoreDarkGreyRegular = GoogleFonts.poppins(
+    fontSize: 12.sp,
+    fontWeight: FontWeightHelper.regular,
+    color: ColorsManager.moreDarkGrey,
+  );
+
+  static TextStyle font15MoreDarkGreyMedium = GoogleFonts.poppins(
+    fontSize: 15.sp,
+    fontWeight: FontWeightHelper.medium,
+    color: ColorsManager.moreDarkGrey,
+  );
+
+  static TextStyle font14GradientRegularGrey = GoogleFonts.poppins(
+    fontSize: 14.sp,
+    fontWeight: FontWeightHelper.regular,
+    color: Colors.white, // Color will be replaced by gradient
+  );
+
   static TextStyle font12BlackMedium = GoogleFonts.poppins(
     fontSize: 12.sp,
     fontWeight: FontWeightHelper.medium,
