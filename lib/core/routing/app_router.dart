@@ -7,9 +7,14 @@ import 'package:soliel/features/auth/reset_password/ui/screens/reset_password_do
 import 'package:soliel/features/auth/reset_password/ui/screens/reset_password_screen.dart';
 import 'package:soliel/features/doctor_profile/ui/screens/doctor_profile_screen.dart';
 import 'package:soliel/features/doctor_profile/ui/screens/edit_profile_screen.dart';
+import 'package:soliel/features/games/ui/screens/games_screen.dart';
+import 'package:soliel/features/home/ui/screens/home_screen.dart';
 import 'package:soliel/features/onboarding/screens/onboarding_screen.dart';
 import 'package:soliel/features/onboarding/screens/select_role_screen.dart';
+import 'package:soliel/features/parent_layout/parent_layout.dart';
+import 'package:soliel/features/profile/ui/screens/profile_screen.dart';
 import 'package:soliel/features/splash/splash_screen.dart';
+import 'package:soliel/features/test/ui/screens/test_screen.dart';
 
 class AppRouter {
   Route generateRoute(RouteSettings settings) {
@@ -44,6 +49,21 @@ class AppRouter {
 
       case Routes.editProfileScreen:
         return MaterialPageRoute(builder: (_) => const EditProfileScreen());
+      case Routes.parentLayout:
+        return MaterialPageRoute(builder: (_) => const ParentLayout());
+
+      case Routes.homeScreen:
+        return MaterialPageRoute(builder: (_) => const HomeScreen());
+
+      case Routes.profileScreen:
+        return MaterialPageRoute(builder: (_) => const ProfileScreen());
+
+      case Routes.gamesScreen:
+        return MaterialPageRoute(builder: (_) => const GamesScreen());
+
+      case Routes.testScreen:
+        return MaterialPageRoute(builder: (_) => const TestScreen());
+
       default:
         return MaterialPageRoute(
           builder: (_) => Scaffold(

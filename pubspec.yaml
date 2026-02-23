@@ -74,7 +74,7 @@ dependencies:
   # package to Customizable animated page indicator with a set of built-in effects.
   smooth_page_indicator: ^1.2.0+3
   # A carousel slider widget, support infinite scroll and custom child widget.
-  carousel_slider: ^5.0.0
+  carousel_slider: ^5.1.2
   # Library that allows you to display progress widgets based on percentage.
   percent_indicator: ^4.2.3
   #Render After Effects animations natively on Flutter.

@@ -124,6 +124,12 @@ class TextStyles {
   );
 
   // Black Text Styles
+  static TextStyle font17DarkForestSemiBold = GoogleFonts.poppins(
+    fontSize: 17.sp,
+    fontWeight: FontWeightHelper.semiBold,
+    color: ColorsManager.darkForest,
+  );
+
   static TextStyle font20BlackSemiBold = GoogleFonts.poppins(
     fontSize: 20.sp,
     fontWeight: FontWeightHelper.semiBold,

@@ -1,192 +1,204 @@
-// import 'dart:convert';
-// import 'constants.dart';
-// import 'package:flutter/material.dart';
+import 'dart:convert';
 
-// class SharedPrefHelper {
-//   // private constructor as I don't want to allow creating an instance of this class itself.
-//   SharedPrefHelper._();
+import 'package:flutter/foundation.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-//   /// Removes a value from SharedPreferences with given [key].
-//   static removeData(String key) async {
-//     debugPrint('SharedPrefHelper : data with key : $key has been removed');
-//     SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
-//     await sharedPreferences.remove(key);
-//   }
+class StorageHelper {
+  StorageHelper._(); // private constructor → static usage only
 
-//   /// Removes all keys and values in the SharedPreferences
-//   static clearAllData() async {
-//     debugPrint('SharedPrefHelper : all data has been cleared');
-//     SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
-//     await sharedPreferences.clear();
-//   }
+  // ────────────────────────────────────────────
+  //  SharedPreferences - General Methods
+  // ────────────────────────────────────────────
 
-//   /// Saves a [value] with a [key] in the SharedPreferences.
-//   static setData(String key, dynamic value) async {
-//     SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
-//     debugPrint("SharedPrefHelper : setData with key : $key and value : $value");
-//     switch (value.runtimeType) {
-//       case String:
-//         await sharedPreferences.setString(key, value);
-//         break;
-//       case int:
-//         await sharedPreferences.setInt(key, value);
-//         break;
-//       case bool:
-//         await sharedPreferences.setBool(key, value);
-//         break;
-//       case double:
-//         await sharedPreferences.setDouble(key, value);
-//         break;
-//       default:
-//         return null;
-//     }
-//   }
+  static Future<SharedPreferences> _getPrefs() =>
+      SharedPreferences.getInstance();
 
-//   /// Gets a String value from SharedPreferences with given [key].
-//   static getString(String key) async {
-//     debugPrint('SharedPrefHelper : getString with key : $key');
-//     SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
-//     return sharedPreferences.getString(key) ?? '';
-//   }
+  static Future<bool> containsKey(String key) async {
+    final prefs = await _getPrefs();
+    return prefs.containsKey(key);
+  }
 
-//   /// Gets a bool value from SharedPreferences with given [key].
-//   static getBool(String key) async {
-//     debugPrint('SharedPrefHelper : getBool with key : $key');
-//     SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
-//     return sharedPreferences.getBool(key) ?? false;
-//   }
+  static Future<void> remove(String key) async {
+    final prefs = await _getPrefs();
+    await prefs.remove(key);
+    if (kDebugMode) debugPrint('Storage → removed: $key');
+  }
 
-//   /// Gets an int value from SharedPreferences with given [key].
-//   static getInt(String key) async {
-//     debugPrint('SharedPrefHelper : getInt with key : $key');
-//     SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
-//     return sharedPreferences.getInt(key) ?? 0;
-//   }
+  static Future<void> clearAll() async {
+    final prefs = await _getPrefs();
+    await prefs.clear();
+    if (kDebugMode) debugPrint('Storage → SharedPreferences cleared');
+  }
 
-//   /// Gets a double value from SharedPreferences with given [key].
-//   static getDouble(String key) async {
-//     debugPrint('SharedPrefHelper : getDouble with key : $key');
-//     SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
-//     return sharedPreferences.getDouble(key) ?? 0.0;
-//   }
+  // ────────────────────────────────────────────
+  //  Generic typed write / read
+  // ────────────────────────────────────────────
 
-//   /// Saves a [value] with a [key] in the FlutterSecureStorage.
-//   static setSecuredString(String key, String value) async {
-//     const flutterSecureStorage = FlutterSecureStorage();
-//     debugPrint(
-//         "FlutterSecureStorage : setSecuredString with key : $key and value : $value");
-//     await flutterSecureStorage.write(key: key, value: value);
-//   }
+  static Future<void> setValue<T>(String key, T value) async {
+    final prefs = await _getPrefs();
 
-//   /// Gets a String value from FlutterSecureStorage with given [key].
-//   static getSecuredString(String key) async {
-//     const flutterSecureStorage = FlutterSecureStorage();
-//     debugPrint('FlutterSecureStorage : getSecuredString with key : $key');
-//     return await flutterSecureStorage.read(key: key) ?? '';
-//   }
+    if (kDebugMode) {
+      debugPrint('Storage → set $key = $value (${value.runtimeType})');
+    }
 
-//   /// Removes all keys and values in the FlutterSecureStorage
-//   static clearAllSecuredData() async {
-//     debugPrint('FlutterSecureStorage : all data has been cleared');
-//     const flutterSecureStorage = FlutterSecureStorage();
-//     await flutterSecureStorage.deleteAll();
-//   }
+    switch (value) {
+      case String _:
+        await prefs.setString(key, value);
+      case int _:
+        await prefs.setInt(key, value);
+      case bool _:
+        await prefs.setBool(key, value);
+      case double _:
+        await prefs.setDouble(key, value);
+      case List<String> _:
+        await prefs.setStringList(key, value);
+      default:
+        if (kDebugMode) {
+          debugPrint(
+            'Storage → Unsupported type for key $key: ${value.runtimeType}',
+          );
+        }
+    }
+  }
 
-//   /// Saves the user's email in SharedPreferences
-//   static saveEmail(String email) async {
-//     debugPrint('SharedPrefHelper : Saving email : $email');
-//     await setData('email', email);
-//   }
+  static Future<String?> getString(String key, {String? defaultValue}) async {
+    final prefs = await _getPrefs();
+    return prefs.getString(key) ?? defaultValue;
+  }
 
-//   /// Retrieves the saved email from SharedPreferences
-//   static Future<String> getEmail() async {
-//     debugPrint('SharedPrefHelper : Retrieving email');
-//     return await getString('email');
-//   }
+  static Future<int?> getInt(String key, {int? defaultValue}) async {
+    final prefs = await _getPrefs();
+    return prefs.getInt(key) ?? defaultValue;
+  }
 
-//   /// Saves the OTP securely in FlutterSecureStorage
-//   static saveOtp(String otp) async {
-//     debugPrint('SharedPrefHelper : Saving OTP');
-//     await setSecuredString('otp', otp);
-//   }
+  static Future<bool?> getBool(String key, {bool? defaultValue}) async {
+    final prefs = await _getPrefs();
+    return prefs.getBool(key) ?? defaultValue;
+  }
 
-//   /// Retrieves the saved OTP from FlutterSecureStorage
-//   static Future<String> getOtp() async {
-//     debugPrint('SharedPrefHelper : Retrieving OTP');
-//     return await getSecuredString('otp');
-//   }
+  static Future<double?> getDouble(String key, {double? defaultValue}) async {
+    final prefs = await _getPrefs();
+    return prefs.getDouble(key) ?? defaultValue;
+  }
 
-//   /// Removes email from SharedPreferences
-//   static removeEmail() async {
-//     debugPrint('SharedPrefHelper : Removing email');
-//     await removeData('email');
-//   }
+  static Future<List<String>?> getStringList(
+    String key, {
+    List<String>? defaultValue,
+  }) async {
+    final prefs = await _getPrefs();
+    return prefs.getStringList(key) ?? defaultValue;
+  }
 
-//   /// Check if the app is launched for the first time
-//   static Future<bool> isFirstLaunch() async {
-//     SharedPreferences prefs = await SharedPreferences.getInstance();
-//     return prefs.getBool(SharedPrefKeys.isFirstLaunch) ?? true;
-//   }
+  // ────────────────────────────────────────────
+  //  Flutter Secure Storage (for sensitive data)
+  // ────────────────────────────────────────────
 
-//   static Future<void> setFirstLaunch(bool value) async {
-//     SharedPreferences prefs = await SharedPreferences.getInstance();
-//     await prefs.setBool('isFirstLaunch', value);
-//   }
+  static const _secureStorage = FlutterSecureStorage();
 
-//   static Future<bool?> getSecuredBool(String key) async {
-//     final prefs = await SharedPreferences.getInstance();
-//     return prefs.getBool(key);
-//   }
+  static Future<void> setSecureString(String key, String value) async {
+    if (kDebugMode) {
+      debugPrint('SecureStorage → set $key (length: ${value.length})');
+    }
+    await _secureStorage.write(key: key, value: value);
+  }
 
-//   static Future<bool> isSurveyCompleted() async {
-//     final prefs = await SharedPreferences.getInstance();
-//     return prefs.getBool(SharedPrefKeys.isSurveyCompleted) ?? false;
-//   }
+  static Future<String?> getSecureString(String key) async {
+    final value = await _secureStorage.read(key: key);
+    if (kDebugMode && value != null) {
+      debugPrint('SecureStorage → read $key (length: ${value.length})');
+    }
+    return value;
+  }
 
-//   static Future<void> setSurveyCompleted(bool value) async {
-//     final prefs = await SharedPreferences.getInstance();
-//     await prefs.setBool(SharedPrefKeys.isSurveyCompleted, value);
-//   }
+  static Future<void> removeSecure(String key) async {
+    await _secureStorage.delete(key: key);
+    if (kDebugMode) debugPrint('SecureStorage → removed: $key');
+  }
 
-//   /// Fetch the saved survey result as a String
-//   static Future<String?> getSurveyResult() async {
-//     debugPrint('SharedPrefHelper : Retrieving survey result');
-//     SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
-//     return sharedPreferences.getString('surveyResult');
-//   }
+  static Future<void> clearAllSecure() async {
+    await _secureStorage.deleteAll();
+    if (kDebugMode) debugPrint('SecureStorage → all data cleared');
+  }
 
-//   // Optionally, create a method to save the survey result
-//   static Future<void> saveSurveyResult(String value) async {
-//     debugPrint('SharedPrefHelper : Saving survey result');
-//     SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
-//     await sharedPreferences.setString('surveyResult', value);
-//   }
+  // ────────────────────────────────────────────
+  //  Role selection storage
+  // ────────────────────────────────────────────
 
-//   // Fetch the anxiety level id from the saved survey result
-//   static Future<int?> getAnxietyLevelId() async {
-//     String? surveyResult = await getSurveyResult();
-//     if (surveyResult != null) {
-//       Map<String, dynamic> resultMap = json.decode(surveyResult);
-//       return resultMap['anxiety_level_id'];
-//     }
-//     return null;
-//   }
+  static const String keySelectedRole = 'selected_role';
 
-//   /// Saves the post ID in SharedPreferences
-//   static Future<void> savePostId(String postId) async {
-//     debugPrint('SharedPrefHelper : Saving post ID : $postId');
-//     await setData('post_id', postId);
-//   }
+  static const String roleDoctor = 'doctor';
+  static const String roleParent = 'parent';
+  static const String roleWebsite = 'website';
 
-//   /// Retrieves the saved post ID from SharedPreferences
-//   static Future<String?> getPostId() async {
-//     debugPrint('SharedPrefHelper : Retrieving post ID');
-//     return await getString('post_id');
-//   }
-// }
+  static Future<void> saveSelectedRole(String role) async {
+    await setValue(keySelectedRole, role);
+    if (kDebugMode) debugPrint('Storage → saved role: $role');
+  }
 
-//   // /// Removes OTP from FlutterSecureStorage
-//   // static removeOtp() async {
-//   //   debugPrint('SharedPrefHelper : Removing OTP');
-//   //   await FlutterSecureStorage.delete(key: 'otp');
-//   // }
+  static Future<String?> getSelectedRole() async {
+    final role = await getString(keySelectedRole);
+    if (kDebugMode) debugPrint('Storage → retrieved role: $role');
+    return role;
+  }
+
+  static Future<void> clearSelectedRole() async {
+    await remove(keySelectedRole);
+  }
+
+  // ────────────────────────────────────────────
+  //  Common / Reusable high-level helpers
+  // ────────────────────────────────────────────
+
+  static Future<void> saveJson(String key, Map<String, dynamic> json) async {
+    await setValue(key, jsonEncode(json));
+  }
+
+  static Future<Map<String, dynamic>?> getJson(String key) async {
+    final raw = await getString(key);
+    if (raw == null || raw.isEmpty) return null;
+    try {
+      return jsonDecode(raw) as Map<String, dynamic>;
+    } catch (e) {
+      if (kDebugMode) debugPrint('Storage → json decode failed for $key: $e');
+      return null;
+    }
+  }
+
+  // ────────────────────────────────────────────
+  //  First launch / onboarding pattern
+  // ────────────────────────────────────────────
+
+  static const String keyFirstLaunch = 'first_launch';
+
+  static Future<bool> isFirstLaunch() async {
+    return await getBool(keyFirstLaunch, defaultValue: true) ?? true;
+  }
+
+  static Future<void> setNotFirstLaunch() async {
+    await setValue(keyFirstLaunch, false);
+  }
+
+  // ────────────────────────────────────────────
+  //  Auth related helpers (customize / remove as needed)
+  // ────────────────────────────────────────────
+
+  static const String keyUserEmail = 'user_email';
+  static const String keyAccessToken = 'access_token';
+
+  static Future<void> saveEmail(String email) => setValue(keyUserEmail, email);
+  static Future<String?> getEmail() => getString(keyUserEmail);
+
+  static Future<void> saveAccessToken(String token) =>
+      setSecureString(keyAccessToken, token);
+
+  static Future<String?> getAccessToken() => getSecureString(keyAccessToken);
+
+  static Future<void> clearAuthData() async {
+    await Future.wait([
+      remove(keyUserEmail),
+      removeSecure(keyAccessToken),
+      clearSelectedRole(),
+    ]);
+  }
+}

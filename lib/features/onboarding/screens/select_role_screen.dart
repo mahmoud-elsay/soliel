@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:soliel/core/helpers/app_role.dart';
 import 'package:soliel/core/helpers/extensions.dart';
 import 'package:soliel/core/helpers/spacing.dart';
 import 'package:soliel/core/routing/routes.dart';
@@ -30,33 +31,46 @@ class SelectRoleScreen extends StatelessWidget {
               const Spacer(flex: 2),
               SvgPicture.asset('assets/svgs/blue_app_logo.svg', height: 120.h),
               const Spacer(flex: 3),
+
               AppTextButton(
-                onPressed: () {
-                  context.pushNamed(Routes.loginScreen);
+                onPressed: () async {
+                  await AppRoleFactory.saveRole(const DoctorRole());
+                  if (context.mounted) {
+                    context.pushNamed(Routes.loginScreen);
+                  }
                 },
-                textButton: 'دكتور',
+                textButton: const DoctorRole().displayNameArabic,
                 gradient: ColorsManager.primaryGradient,
                 height: 56.h,
                 borderRadius: 12.r,
               ),
+
               verticalSpace(16),
-              // Parent/Guardian Button with Gradient Text
+
               AppTextButton(
-                onPressed: () {
-                  context.pushNamed(Routes.loginScreen);
+                onPressed: () async {
+                  await AppRoleFactory.saveRole(const ParentRole());
+                  if (context.mounted) {
+                    context.pushNamed(Routes.loginScreen);
+                  }
                 },
-                textButton: 'ولي الامر',
+                textButton: const ParentRole().displayNameArabic,
                 backgroundColor: ColorsManager.lightBlue,
                 textGradient: ColorsManager.primaryGradient,
                 height: 56.h,
                 borderRadius: 12.r,
               ),
+
               verticalSpace(40),
+
               AppTextButton(
-                onPressed: () {
-                  context.pushNamed(Routes.loginScreen);
+                onPressed: () async {
+                  await AppRoleFactory.saveRole(const WebsiteRole());
+                  if (context.mounted) {
+                    context.pushNamed(Routes.loginScreen);
+                  }
                 },
-                textButton: ' الموقع الالكتروني',
+                textButton: const WebsiteRole().displayNameArabic,
                 backgroundColor: ColorsManager.lightBlue,
                 textGradient: ColorsManager.primaryGradient,
                 height: 56.h,
