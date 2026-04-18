@@ -13,6 +13,7 @@ class Routes {
   static const String profileScreen = 'profileScreen';
   static const String gamesScreen = 'gamesScreen';
   static const String testScreen = 'testScreen';
+  static const String scannerScreen = 'scannerScreen';
   static const String resetPasswordScreen = 'resetPasswordScreen';
   static const String resetPasswordDoneScreen = 'resetPasswordDoneScreen';
   static const String verifySignUpScreen = 'verifySignUpScreen';

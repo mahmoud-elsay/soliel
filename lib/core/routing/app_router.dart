@@ -14,6 +14,7 @@ import 'package:soliel/features/onboarding/screens/select_role_screen.dart';
 import 'package:soliel/features/parent_layout/parent_layout.dart';
 import 'package:soliel/features/profile/ui/screens/profile_screen.dart';
 import 'package:soliel/features/splash/splash_screen.dart';
+import 'package:soliel/features/test/ui/screens/scanner_screen.dart';
 import 'package:soliel/features/test/ui/screens/test_screen.dart';
 
 class AppRouter {
@@ -63,6 +64,9 @@ class AppRouter {
 
       case Routes.testScreen:
         return MaterialPageRoute(builder: (_) => const TestScreen());
+
+      case Routes.scannerScreen:
+        return MaterialPageRoute(builder: (_) => const ScannerScreen());
 
       default:
         return MaterialPageRoute(
