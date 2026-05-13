@@ -8,6 +8,7 @@ import 'package:soliel/features/auth/reset_password/ui/screens/reset_password_sc
 import 'package:soliel/features/doctor_profile/ui/screens/doctor_profile_screen.dart';
 import 'package:soliel/features/doctor_profile/ui/screens/edit_profile_screen.dart';
 import 'package:soliel/features/games/ui/screens/games_screen.dart';
+import 'package:soliel/features/games/ui/screens/start_game_screen.dart';
 import 'package:soliel/features/home/ui/screens/home_screen.dart';
 import 'package:soliel/features/onboarding/screens/onboarding_screen.dart';
 import 'package:soliel/features/onboarding/screens/select_role_screen.dart';
@@ -72,12 +73,13 @@ class AppRouter {
 
       case Routes.questionsScreen:
         final args = settings.arguments as QuestionsArgs;
-        return MaterialPageRoute(
-          builder: (_) => QuestionsScreen(args: args),
-        );
+        return MaterialPageRoute(builder: (_) => QuestionsScreen(args: args));
 
       case Routes.scannerScreen:
         return MaterialPageRoute(builder: (_) => const ScannerScreen());
+
+      case Routes.startGameScreen:
+        return MaterialPageRoute(builder: (_) => const StartGameScreen());
 
       default:
         return MaterialPageRoute(

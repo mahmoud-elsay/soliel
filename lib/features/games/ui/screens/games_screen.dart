@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:soliel/core/helpers/extensions.dart';
 import 'package:soliel/core/helpers/spacing.dart';
+import 'package:soliel/core/routing/routes.dart';
 import 'package:soliel/core/theming/colors_manger.dart';
 import 'package:soliel/core/theming/styles.dart';
 import 'package:soliel/core/widgets/app_gradient_text.dart';
@@ -36,19 +38,28 @@ class GamesScreen extends StatelessWidget {
 
               verticalSpace(16),
 
-              const GameCard(
+              GameCard(
                 imagePath: 'assets/images/skills_game_image.jpg',
                 title: 'مجال المهارات والسلوكيات',
+                onTap: () {
+                  context.pushNamed(Routes.startGameScreen);
+                },
               ),
 
-              const GameCard(
+              GameCard(
                 imagePath: 'assets/images/interaction_game_image.jpg',
                 title: 'مجال التفاعل الاجتماعي',
+                onTap: () {
+                  context.pushNamed(Routes.startGameScreen);
+                },
               ),
 
-              const GameCard(
+              GameCard(
                 imagePath: 'assets/images/communication_game_image.jpg',
                 title: 'مجال التواصل',
+                onTap: () {
+                  context.pushNamed(Routes.startGameScreen);
+                },
               ),
 
               // Padding for bottom nav
