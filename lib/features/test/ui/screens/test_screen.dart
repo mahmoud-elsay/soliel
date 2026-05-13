@@ -15,8 +15,6 @@ class TestScreen extends StatefulWidget {
 }
 
 class _TestScreenState extends State<TestScreen> {
-  String? _capturedImagePath;
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -35,17 +33,11 @@ class _TestScreenState extends State<TestScreen> {
                     TestCard(
                       title: 'فحص العين',
                       imagePath: 'assets/images/eye_inspect_image.png',
-                      capturedImagePath: _capturedImagePath,
-                      onTap: () async {
-                        final result = await Navigator.pushNamed(
+                      onTap: () {
+                        Navigator.pushNamed(
                           context,
                           Routes.scannerScreen,
                         );
-                        if (result != null && result is String) {
-                          setState(() {
-                            _capturedImagePath = result;
-                          });
-                        }
                       },
                     ),
                     SizedBox(height: 25.h),
@@ -53,7 +45,7 @@ class _TestScreenState extends State<TestScreen> {
                       title: 'استبيان مبدئي',
                       imagePath: 'assets/images/papers.png',
                       onTap: () {
-                        // TODO: Implement questionnaire navigation
+                        Navigator.pushNamed(context, Routes.questionnaireScreen);
                       },
                     ),
                   ],

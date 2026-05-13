@@ -306,4 +306,25 @@ class TextStyles {
     fontWeight: FontWeightHelper.regular,
     color: ColorsManager.secondaryBlue,
   );
+  static TextStyle font18RobotoBlackSemiBold = GoogleFonts.roboto(
+    fontSize: 18.sp,
+    fontWeight: FontWeightHelper.semiBold,
+    color: const Color(0xFF212529),
+    height: 1.0,
+  );
+
+  static TextStyle font14RobotoGreySemiBold = GoogleFonts.roboto(
+    fontSize: 14.sp,
+    fontWeight: FontWeightHelper.semiBold,
+    color: const Color(0xFF474747),
+    height: 1.0,
+  );
+
+  static TextStyle font18InterWhiteSemiBold = GoogleFonts.inter(
+    fontSize: 18.13.sp,
+    fontWeight: FontWeightHelper.semiBold,
+    color: ColorsManager.white,
+    height: 1.0,
+    letterSpacing: -18.13 * 0.04,
+  );
 }

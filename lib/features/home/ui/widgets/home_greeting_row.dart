@@ -12,35 +12,29 @@ class HomeGreetingRow extends StatelessWidget {
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 12.h),
       child: Row(
-        textDirection: TextDirection.rtl,
         children: [
-          // Menu icon on the right (RTL leading)
-          SvgPicture.asset(
-            'assets/svgs/menu_icon.svg',
-            width: 24.w,
-            height: 24.h,
-            colorFilter: const ColorFilter.mode(
-              ColorsManager.black,
-              BlendMode.srcIn,
+          // Avatar on the right (RTL start)
+          CircleAvatar(
+            radius: 22.r,
+            backgroundImage: const AssetImage(
+              'assets/images/parent_avatar.png',
             ),
           ),
-
+          
           SizedBox(width: 12.w),
 
-          // Greeting texts
+          // Greeting texts (Centered/Expanded)
           Expanded(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   'مرحبا!عمرو محمد...',
-                  textDirection: TextDirection.rtl,
                   style: TextStyles.font14BlackSemiBold,
                 ),
                 SizedBox(height: 2.h),
                 Text(
                   'تابع حاله طفلك اليوم',
-                  textDirection: TextDirection.rtl,
                   style: TextStyles.font14GreyMedium.copyWith(fontSize: 13.sp),
                 ),
               ],
@@ -49,11 +43,14 @@ class HomeGreetingRow extends StatelessWidget {
 
           SizedBox(width: 12.w),
 
-          // Avatar on the left (RTL trailing)
-          CircleAvatar(
-            radius: 22.r,
-            backgroundImage: const AssetImage(
-              'assets/images/parent_avatar.png',
+          // Menu icon on the left (RTL end)
+          SvgPicture.asset(
+            'assets/svgs/menu_icon.svg',
+            width: 24.w,
+            height: 24.h,
+            colorFilter: const ColorFilter.mode(
+              ColorsManager.black,
+              BlendMode.srcIn,
             ),
           ),
         ],

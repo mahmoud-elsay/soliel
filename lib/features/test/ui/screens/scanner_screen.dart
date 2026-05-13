@@ -35,11 +35,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
               alignment: Alignment.topRight,
               child: IconButton(
                 onPressed: () => Navigator.pop(context),
-                icon: Icon(
-                  Icons.close,
-                  color: Colors.white,
-                  size: 30.r,
-                ),
+                icon: Icon(Icons.close, color: Colors.white, size: 30.r),
               ),
             ),
             SizedBox(height: 20.h),
@@ -67,7 +63,10 @@ class _ScannerScreenState extends State<ScannerScreen> {
                 onPressed: () => Navigator.pop(context, _pickedImagePath),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.blue,
-                  padding: EdgeInsets.symmetric(horizontal: 40.w, vertical: 12.h),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 40.w,
+                    vertical: 12.h,
+                  ),
                 ),
                 child: Text('تأكيد', style: TextStyles.font16WhiteSemiBold),
               )
@@ -139,9 +138,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
         SizedBox(height: 20.h),
         Text(
           'بانتظار الطفل',
-          style: TextStyles.font20BlackSemiBold.copyWith(
-            color: Colors.white,
-          ),
+          style: TextStyles.font20BlackSemiBold.copyWith(color: Colors.white),
         ),
       ],
     );
@@ -152,11 +149,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
       children: [
         IconButton(
           onPressed: () => _pickImage(ImageSource.gallery),
-          icon: Icon(
-            Icons.cloud_upload,
-            color: Colors.white,
-            size: 40.r,
-          ),
+          icon: Icon(Icons.cloud_upload, color: Colors.white, size: 40.r),
         ),
         Text(
           'رفع صورة',

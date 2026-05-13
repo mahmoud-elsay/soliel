@@ -7,15 +7,17 @@ import 'package:soliel/core/widgets/app_gradient_text.dart';
 class TestCard extends StatelessWidget {
   final String title;
   final String imagePath;
-  final String? capturedImagePath;
   final VoidCallback onTap;
+  final Border? border;
+  final double? customWidth;
 
   const TestCard({
     super.key,
     required this.title,
     required this.imagePath,
-    this.capturedImagePath,
     required this.onTap,
+    this.border,
+    this.customWidth,
   });
 
   @override
@@ -23,11 +25,12 @@ class TestCard extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 333.w,
+        width: customWidth?.w ?? 333.w,
         height: 143.h,
         decoration: BoxDecoration(
           color: ColorsManager.lightBlue,
           borderRadius: BorderRadius.circular(15.r),
+          border: border,
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.05),
@@ -38,18 +41,15 @@ class TestCard extends StatelessWidget {
         ),
         child: Stack(
           children: [
-            Positioned(
-              left: 15.w,
+            PositionedDirectional(
+              end: 15.w,
               top: 15.h,
               bottom: 15.h,
-              child: Image.asset(
-                imagePath,
-                fit: BoxFit.contain,
-              ),
+              child: Image.asset(imagePath, fit: BoxFit.contain),
             ),
             Center(
               child: Padding(
-                padding: EdgeInsets.only(left: 100.w), // Space for image
+                padding: EdgeInsetsDirectional.only(start: 10.w, end: 100.w), // Space for image on the left (end)
                 child: AppGradientText(
                   gradient: ColorsManager.primaryGradient,
                   child: Text(
