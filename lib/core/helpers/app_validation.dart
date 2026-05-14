@@ -13,7 +13,7 @@ String? validateEmail(String? value) {
   if (value == null || value.isEmpty) {
     return 'البريد الإلكتروني مطلوب';
   } else if (!AppRegex.isEmailValid(value)) {
-    return 'يرجى إدخال بريد إلكتروني جامعي صحيح';
+    return 'يرجى إدخال بريد إلكتروني صحيح';
   }
   return null;
 }
@@ -22,7 +22,7 @@ String? validatePassword(String? value) {
   if (value == null || value.isEmpty) {
     return 'كلمة المرور مطلوبة';
   } else if (!AppRegex.isPasswordValid(value)) {
-    return 'يجب أن تتكون كلمة المرور من 6 أحرف على الأقل وتحتوي على حرف ورقم';
+    return 'يجب أن تتكون كلمة المرور من 8 أحرف على الأقل وتحتوي على حرف كبير وحرف صغير ورقم ورمز';
   }
   return null;
 }

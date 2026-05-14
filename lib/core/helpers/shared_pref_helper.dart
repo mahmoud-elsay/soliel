@@ -185,6 +185,7 @@ class StorageHelper {
 
   static const String keyUserEmail = 'user_email';
   static const String keyAccessToken = 'access_token';
+  static const String keyUserName = 'user_name';
 
   static Future<void> saveEmail(String email) => setValue(keyUserEmail, email);
   static Future<String?> getEmail() => getString(keyUserEmail);
@@ -194,9 +195,15 @@ class StorageHelper {
 
   static Future<String?> getAccessToken() => getSecureString(keyAccessToken);
 
+  static Future<void> saveUserName(String userName) =>
+      setValue(keyUserName, userName);
+
+  static Future<String?> getUserName() => getString(keyUserName);
+
   static Future<void> clearAuthData() async {
     await Future.wait([
       remove(keyUserEmail),
+      remove(keyUserName),
       removeSecure(keyAccessToken),
       clearSelectedRole(),
     ]);

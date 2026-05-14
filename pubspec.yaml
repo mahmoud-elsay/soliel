@@ -35,22 +35,15 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
   google_fonts: ^8.0.0
-  #A build system for Dart code generation and modular compilation
-  build_runner: ^2.4.12
   # State management
   flutter_bloc: ^8.1.6
-  # Code generator (mainly used with cubit & retrofit)
-  freezed: ^2.5.7
   freezed_annotation: ^2.4.4
   # for dependency injection
   get_it: ^7.7.0
-  # Automatically generate code for converting to and from JSON by annotating Dart classes
-  json_serializable: ^6.8.0
   json_annotation: ^4.9.0
   # Networking
   dio: ^5.7.0
-  retrofit: ^4.4.1
-  retrofit_generator: ^9.1.2
+  retrofit: 4.7.2
   pretty_dio_logger: ^1.4.0
   # localization
   intl: ^0.20.2
@@ -81,8 +74,6 @@ dependencies:
   lottie: ^3.1.2
   # Flutter plugin for selecting images from the Android and iOS image library, and taking new pictures with the camera.
   image_picker: ^1.2.1
-  mockito: ^5.4.4
-  bloc_test: ^9.1.7
   curved_navigation_bar: ^1.0.6
 
 dev_dependencies:
@@ -95,6 +86,12 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+  build_runner: ^2.4.12
+  freezed: ^2.5.7
+  json_serializable: ^6.8.0
+  retrofit_generator: ^9.7.0
+  mockito: ^5.4.4
+  bloc_test: ^9.1.7
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

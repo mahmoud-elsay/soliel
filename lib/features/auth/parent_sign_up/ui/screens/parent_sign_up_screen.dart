@@ -1,27 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:soliel/core/helpers/app_role.dart';
 import 'package:soliel/core/helpers/extensions.dart';
 import 'package:soliel/core/helpers/spacing.dart';
 import 'package:soliel/core/routing/routes.dart';
 import 'package:soliel/core/theming/colors_manger.dart';
 import 'package:soliel/core/theming/styles.dart';
 import 'package:soliel/core/widgets/app_gradient_text.dart';
-import 'package:soliel/core/widgets/or_divider.dart';
-import 'package:soliel/core/widgets/social_media_buttons.dart';
-import 'package:soliel/features/auth/login/logic/login_cubit/login_cubit.dart';
-import 'package:soliel/features/auth/login/logic/login_cubit/login_state.dart';
-import 'package:soliel/features/auth/login/ui/widgets/login_form.dart';
+import 'package:soliel/features/auth/parent_sign_up/logic/parent_sign_up_cubit/parent_sign_up_cubit.dart';
+import 'package:soliel/features/auth/parent_sign_up/logic/parent_sign_up_cubit/parent_sign_up_state.dart';
+import 'package:soliel/features/auth/parent_sign_up/ui/widgets/parent_sign_up_form.dart';
 
-class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+class ParentSignUpScreen extends StatefulWidget {
+  const ParentSignUpScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  State<ParentSignUpScreen> createState() => _ParentSignUpScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _ParentSignUpScreenState extends State<ParentSignUpScreen> {
   bool _isLoadingDialogVisible = false;
 
   void _showLoadingDialog() {
@@ -39,7 +36,7 @@ class _LoginScreenState extends State<LoginScreen> {
             children: [
               CircularProgressIndicator(),
               SizedBox(width: 16),
-              Flexible(child: Text('جاري تسجيل الدخول...')),
+              Flexible(child: Text('جاري إنشاء الحساب...')),
             ],
           ),
         ),
@@ -55,33 +52,32 @@ class _LoginScreenState extends State<LoginScreen> {
     _isLoadingDialogVisible = false;
   }
 
-  Future<void> _openSignUpForSelectedRole() async {
-    final currentRole = await AppRoleFactory.getCurrentRole();
-    final routeName = currentRole is ParentRole
-        ? Routes.parentSignUpScreen
-        : Routes.doctorSignUpScreen;
-
-    if (!mounted) return;
-    context.pushNamed(routeName);
-  }
-
   @override
   Widget build(BuildContext context) {
-    return BlocListener<LoginCubit, LoginState>(
+    return BlocListener<ParentSignUpCubit, ParentSignUpState>(
       listener: (_, state) async {
         state.whenOrNull(
           loading: _showLoadingDialog,
           success: (data) async {
             _hideLoadingDialog();
 
-            final role =
-                AppRoleFactory.fromStorageKey(data.role) ??
-                await AppRoleFactory.getCurrentRole();
-            final routeName = role?.initialRouteAfterLogin ?? Routes.homeScreen;
+            await showDialog<void>(
+              context: this.context,
+              builder: (_) => AlertDialog(
+                title: const Text('تم إنشاء الحساب'),
+                content: Text(data.message),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(this.context).pop(),
+                    child: const Text('حسناً'),
+                  ),
+                ],
+              ),
+            );
 
             if (!mounted) return;
             this.context.pushNamedAndRemoveUntil(
-              routeName,
+              Routes.loginScreen,
               predicate: (route) => false,
             );
           },
@@ -98,15 +94,18 @@ class _LoginScreenState extends State<LoginScreen> {
         appBar: AppBar(
           backgroundColor: ColorsManager.white,
           elevation: 0,
-          leading: IconButton(
-            icon: Icon(
-              Icons.arrow_forward_ios,
-              color: ColorsManager.primaryGradientStart,
+          automaticallyImplyLeading: false,
+          actions: [
+            IconButton(
+              icon: Icon(
+                Icons.arrow_forward_ios,
+                color: ColorsManager.primaryGradientStart,
+              ),
+              onPressed: () {
+                Navigator.pop(context);
+              },
             ),
-            onPressed: () {
-              Navigator.pop(context);
-            },
-          ),
+          ],
         ),
         body: SafeArea(
           child: Padding(
@@ -119,43 +118,32 @@ class _LoginScreenState extends State<LoginScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         verticalSpace(20),
-
                         AppGradientText(
                           gradient: ColorsManager.primaryGradient,
                           child: Text(
-                            'مرحبا بك! مره ثانيه....',
+                            'أنشئ حساب ولي الأمر',
                             style: TextStyles.font30GradientBold,
-                            textAlign: TextAlign.right,
+                            textAlign: TextAlign.start,
                           ),
                         ),
-
-                        verticalSpace(80),
-
-                        const LoginForm(),
-
                         verticalSpace(40),
-
-                        const OrDivider(),
-
-                        verticalSpace(32),
-
-                        const SocialMediaButtons(),
-
+                        const ParentSignUpForm(),
                         verticalSpace(24),
                       ],
                     ),
                   ),
                 ),
-
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      'ليس لديك حساب؟ ',
-                      style: TextStyles.font15DarkBlueBold,
+                      'بالفعل لديك حساب؟ ',
+                      style: TextStyles.font14BlackRegular,
                     ),
                     TextButton(
-                      onPressed: _openSignUpForSelectedRole,
+                      onPressed: () {
+                        context.pushReplacementNamed(Routes.loginScreen);
+                      },
                       style: TextButton.styleFrom(
                         padding: EdgeInsets.zero,
                         minimumSize: Size.zero,
@@ -164,14 +152,13 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: AppGradientText(
                         gradient: ColorsManager.primaryGradient,
                         child: Text(
-                          'سجل الآن',
-                          style: TextStyles.font15GradientBold,
+                          'سجل الدخول',
+                          style: TextStyles.font14GradientMedium,
                         ),
                       ),
                     ),
                   ],
                 ),
-
                 verticalSpace(24),
               ],
             ),
