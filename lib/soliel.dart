@@ -25,6 +25,14 @@ class Soliel extends StatelessWidget {
             useMaterial3: true,
             scaffoldBackgroundColor: ColorsManager.white,
             primaryColor: ColorsManager.primaryGradientStart,
+            textSelectionTheme: const TextSelectionThemeData(
+              cursorColor: ColorsManager.primaryGradientStart,
+              selectionColor: ColorsManager.secondaryBlue,
+              selectionHandleColor: ColorsManager.primaryGradientStart,
+            ),
+            progressIndicatorTheme: const ProgressIndicatorThemeData(
+              color: ColorsManager.primaryGradientStart,
+            ),
             appBarTheme: const AppBarTheme(
               centerTitle: true,
               backgroundColor: ColorsManager.white,

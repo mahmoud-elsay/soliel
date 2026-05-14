@@ -10,6 +10,8 @@ import 'package:soliel/core/theming/styles.dart';
 import 'package:soliel/core/widgets/app_gradient_text.dart';
 import 'package:soliel/core/widgets/or_divider.dart';
 import 'package:soliel/core/widgets/social_media_buttons.dart';
+import 'package:soliel/core/widgets/custom_snack_bar.dart';
+import 'package:soliel/core/widgets/app_loading_indicator.dart';
 import 'package:soliel/features/auth/login/logic/login_cubit/login_cubit.dart';
 import 'package:soliel/features/auth/login/logic/login_cubit/login_state.dart';
 import 'package:soliel/features/auth/login/ui/widgets/login_form.dart';
@@ -28,25 +30,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (_isLoadingDialogVisible) return;
 
     _isLoadingDialogVisible = true;
-    showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => const PopScope(
-        canPop: false,
-        child: AlertDialog(
-          content: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              CircularProgressIndicator(),
-              SizedBox(width: 16),
-              Flexible(child: Text('جاري تسجيل الدخول...')),
-            ],
-          ),
-        ),
-      ),
-    ).then((_) {
-      _isLoadingDialogVisible = false;
-    });
+    showAppLoading(context, 'جاري تسجيل الدخول...');
   }
 
   void _hideLoadingDialog() {
@@ -87,8 +71,10 @@ class _LoginScreenState extends State<LoginScreen> {
           },
           error: (error) {
             _hideLoadingDialog();
-            ScaffoldMessenger.of(this.context).showSnackBar(
-              SnackBar(content: Text(error.message)),
+            CustomSnackBar.show(
+              context,
+              message: error.message,
+              state: SnackBarState.error,
             );
           },
         );

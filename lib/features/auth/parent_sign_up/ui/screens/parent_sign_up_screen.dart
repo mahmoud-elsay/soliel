@@ -7,6 +7,8 @@ import 'package:soliel/core/routing/routes.dart';
 import 'package:soliel/core/theming/colors_manger.dart';
 import 'package:soliel/core/theming/styles.dart';
 import 'package:soliel/core/widgets/app_gradient_text.dart';
+import 'package:soliel/core/widgets/custom_snack_bar.dart';
+import 'package:soliel/core/widgets/app_loading_indicator.dart';
 import 'package:soliel/features/auth/parent_sign_up/logic/parent_sign_up_cubit/parent_sign_up_cubit.dart';
 import 'package:soliel/features/auth/parent_sign_up/logic/parent_sign_up_cubit/parent_sign_up_state.dart';
 import 'package:soliel/features/auth/parent_sign_up/ui/widgets/parent_sign_up_form.dart';
@@ -25,25 +27,7 @@ class _ParentSignUpScreenState extends State<ParentSignUpScreen> {
     if (_isLoadingDialogVisible) return;
 
     _isLoadingDialogVisible = true;
-    showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => const PopScope(
-        canPop: false,
-        child: AlertDialog(
-          content: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              CircularProgressIndicator(),
-              SizedBox(width: 16),
-              Flexible(child: Text('جاري إنشاء الحساب...')),
-            ],
-          ),
-        ),
-      ),
-    ).then((_) {
-      _isLoadingDialogVisible = false;
-    });
+    showAppLoading(context, 'جاري إنشاء الحساب...');
   }
 
   void _hideLoadingDialog() {
@@ -60,31 +44,23 @@ class _ParentSignUpScreenState extends State<ParentSignUpScreen> {
           loading: _showLoadingDialog,
           success: (data) async {
             _hideLoadingDialog();
-
-            await showDialog<void>(
-              context: this.context,
-              builder: (_) => AlertDialog(
-                title: const Text('تم إنشاء الحساب'),
-                content: Text(data.message),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.of(this.context).pop(),
-                    child: const Text('حسناً'),
-                  ),
-                ],
-              ),
+            CustomSnackBar.show(
+              context,
+              message: data.message,
+              state: SnackBarState.success,
             );
-
             if (!mounted) return;
-            this.context.pushNamedAndRemoveUntil(
+            context.pushNamedAndRemoveUntil(
               Routes.loginScreen,
               predicate: (route) => false,
             );
           },
           error: (error) {
             _hideLoadingDialog();
-            ScaffoldMessenger.of(this.context).showSnackBar(
-              SnackBar(content: Text(error.message)),
+            CustomSnackBar.show(
+              context,
+              message: error.message,
+              state: SnackBarState.error,
             );
           },
         );
