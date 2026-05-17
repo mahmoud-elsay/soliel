@@ -16,6 +16,7 @@ class Routes {
   static const String questionnaireScreen = 'questionnaireScreen';
   static const String questionsScreen = 'questionsScreen';
   static const String scannerScreen = 'scannerScreen';
+  static const String scanResultScreen = 'scanResultScreen';
   static const String resetPasswordScreen = 'resetPasswordScreen';
   static const String resetPasswordDoneScreen = 'resetPasswordDoneScreen';
   static const String verifySignUpScreen = 'verifySignUpScreen';

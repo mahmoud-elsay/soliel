@@ -1,9 +1,9 @@
 class ApiConstants {
-  static const String apiBaseUrl =
-      'https://soleilahmeda.runasp.net/api/';
+  static const String apiBaseUrl = 'https://soleilahmeda.runasp.net/api/';
 
   static const String login = 'Account/login';
   static const String registerParent = 'Account/register-parent';
+  static const String eyeScanAnalyze = 'EyeScan/analyze';
 }
 
 class ApiErrors {

@@ -34,10 +34,7 @@ class _TestScreenState extends State<TestScreen> {
                       title: 'فحص العين',
                       imagePath: 'assets/images/eye_inspect_image.png',
                       onTap: () {
-                        Navigator.pushNamed(
-                          context,
-                          Routes.scannerScreen,
-                        );
+                        Navigator.pushNamed(context, Routes.scannerScreen);
                       },
                     ),
                     SizedBox(height: 25.h),
@@ -45,7 +42,10 @@ class _TestScreenState extends State<TestScreen> {
                       title: 'استبيان مبدئي',
                       imagePath: 'assets/images/papers.png',
                       onTap: () {
-                        Navigator.pushNamed(context, Routes.questionnaireScreen);
+                        Navigator.pushNamed(
+                          context,
+                          Routes.questionnaireScreen,
+                        );
                       },
                     ),
                   ],
@@ -64,10 +64,7 @@ class _TestScreenState extends State<TestScreen> {
       child: Center(
         child: AppGradientText(
           gradient: ColorsManager.primaryGradient,
-          child: Text(
-            'الاختبار',
-            style: TextStyles.font20GradientSemiBold,
-          ),
+          child: Text('الاختبار', style: TextStyles.font20GradientSemiBold),
         ),
       ),
     );

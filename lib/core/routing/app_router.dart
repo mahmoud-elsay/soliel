@@ -19,8 +19,11 @@ import 'package:soliel/features/onboarding/screens/select_role_screen.dart';
 import 'package:soliel/features/parent_layout/parent_layout.dart';
 import 'package:soliel/features/profile/ui/screens/profile_screen.dart';
 import 'package:soliel/features/splash/splash_screen.dart';
+import 'package:soliel/features/test/data/models/eye_scan_response.dart';
+import 'package:soliel/features/test/logic/eye_scan_cubit/eye_scan_cubit.dart';
 import 'package:soliel/features/test/ui/screens/questionnaire_screen.dart';
 import 'package:soliel/features/test/ui/screens/questions_screen.dart';
+import 'package:soliel/features/test/ui/screens/scan_result_screen.dart';
 import 'package:soliel/features/test/ui/screens/scanner_screen.dart';
 import 'package:soliel/features/test/ui/screens/test_screen.dart';
 
@@ -90,7 +93,18 @@ class AppRouter {
         return MaterialPageRoute(builder: (_) => QuestionsScreen(args: args));
 
       case Routes.scannerScreen:
-        return MaterialPageRoute(builder: (_) => const ScannerScreen());
+        return MaterialPageRoute(
+          builder: (_) => BlocProvider(
+            create: (_) => getIt<EyeScanCubit>(),
+            child: const ScannerScreen(),
+          ),
+        );
+
+      case Routes.scanResultScreen:
+        final response = settings.arguments as EyeScanResponse;
+        return MaterialPageRoute(
+          builder: (_) => ScanResultScreen(response: response),
+        );
 
       case Routes.startGameScreen:
         return MaterialPageRoute(builder: (_) => const StartGameScreen());

@@ -6,6 +6,8 @@ import 'package:soliel/features/auth/login/data/repo/login_repo.dart';
 import 'package:soliel/features/auth/login/logic/login_cubit/login_cubit.dart';
 import 'package:soliel/features/auth/parent_sign_up/data/repo/parent_sign_up_repo.dart';
 import 'package:soliel/features/auth/parent_sign_up/logic/parent_sign_up_cubit/parent_sign_up_cubit.dart';
+import 'package:soliel/features/test/data/repo/eye_scan_repo.dart';
+import 'package:soliel/features/test/logic/eye_scan_cubit/eye_scan_cubit.dart';
 
 final GetIt getIt = GetIt.instance;
 
@@ -19,12 +21,20 @@ Future<void> setupGetIt() async {
   }
 
   if (!getIt.isRegistered<LoginRepo>()) {
-    getIt.registerLazySingleton<LoginRepo>(() => LoginRepo(getIt<ApiService>()));
+    getIt.registerLazySingleton<LoginRepo>(
+      () => LoginRepo(getIt<ApiService>()),
+    );
   }
 
   if (!getIt.isRegistered<ParentSignUpRepo>()) {
     getIt.registerLazySingleton<ParentSignUpRepo>(
       () => ParentSignUpRepo(getIt<ApiService>()),
+    );
+  }
+
+  if (!getIt.isRegistered<EyeScanRepo>()) {
+    getIt.registerLazySingleton<EyeScanRepo>(
+      () => EyeScanRepo(getIt<ApiService>()),
     );
   }
 
@@ -35,6 +45,12 @@ Future<void> setupGetIt() async {
   if (!getIt.isRegistered<ParentSignUpCubit>()) {
     getIt.registerFactory<ParentSignUpCubit>(
       () => ParentSignUpCubit(getIt<ParentSignUpRepo>()),
+    );
+  }
+
+  if (!getIt.isRegistered<EyeScanCubit>()) {
+    getIt.registerFactory<EyeScanCubit>(
+      () => EyeScanCubit(getIt<EyeScanRepo>()),
     );
   }
 }

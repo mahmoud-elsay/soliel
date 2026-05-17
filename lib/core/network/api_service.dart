@@ -5,6 +5,8 @@ import 'package:soliel/features/auth/login/data/models/login_request_body.dart';
 import 'package:soliel/features/auth/login/data/models/login_response_body.dart';
 import 'package:soliel/features/auth/parent_sign_up/data/models/parent_sign_up_request_body.dart';
 import 'package:soliel/features/auth/parent_sign_up/data/models/parent_sign_up_response_body.dart';
+import 'package:soliel/features/test/data/models/eye_scan_request.dart';
+import 'package:soliel/features/test/data/models/eye_scan_response.dart';
 
 part 'api_service.g.dart';
 
@@ -20,4 +22,7 @@ abstract class ApiService {
   Future<ParentSignUpResponseBody> registerParent(
     @Body() ParentSignUpRequestBody parentSignUpRequestBody,
   );
+
+  @POST(ApiConstants.eyeScanAnalyze)
+  Future<EyeScanResponse> analyzeEyeScan(@Body() EyeScanRequest request);
 }
