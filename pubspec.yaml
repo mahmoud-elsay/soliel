@@ -75,6 +75,10 @@ dependencies:
   # Flutter plugin for selecting images from the Android and iOS image library, and taking new pictures with the camera.
   image_picker: ^1.2.1
   curved_navigation_bar: ^1.0.6
+  # Camera + ML Kit for real eye gaze tracking
+  camera: ^0.11.0+2
+  google_mlkit_face_detection: ^0.12.0
+  permission_handler: ^11.3.1
 
 dev_dependencies:
   flutter_test:

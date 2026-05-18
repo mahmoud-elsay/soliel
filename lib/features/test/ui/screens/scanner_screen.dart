@@ -1,12 +1,11 @@
-import 'dart:io';
-import 'dart:math' as math;
-import 'dart:typed_data';
-import 'dart:ui' as ui;
+import 'dart:async';
 
+import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:image_picker/image_picker.dart';
+import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:soliel/core/routing/routes.dart';
 import 'package:soliel/core/theming/styles.dart';
 import 'package:soliel/core/widgets/app_loading_indicator.dart';
@@ -23,362 +22,225 @@ class ScannerScreen extends StatefulWidget {
 }
 
 class _ScannerScreenState extends State<ScannerScreen> {
-  static const int _minimumRequiredPoints = 15;
-  static const int _targetPointCount = 20;
-  static const List<int> _dwellPattern = [
-    50,
-    34,
-    42,
-    38,
-    34,
-    46,
-    34,
-    52,
-    38,
-    34,
-    44,
-    34,
-    48,
-    36,
-    34,
-    40,
-    34,
-    54,
-    34,
-    38,
-  ];
+  // ── Config ───────────────────────────────────────────────────────────────────
+  static const int _sessionSeconds = 10; // how long to record
+  static const int _minPoints = 15; // matches API minimum
 
-  final ImagePicker _picker = ImagePicker();
-  final GlobalKey _overlayKey = GlobalKey();
+  // ── Camera + ML Kit ──────────────────────────────────────────────────────────
+  CameraController? _camera;
+  FaceDetector? _faceDetector;
+  bool _isDetecting = false;
 
-  String? _pickedImagePath;
-  bool _isLoadingDialogVisible = false;
-  List<ScanPoint> _generatedScanPath = const [];
+  // ── Recording state ──────────────────────────────────────────────────────────
+  final List<ScanPoint> _gazePoints = [];
+  int _pointIndex = 0;
+  int? _lastTimestampMs;
+  bool _isRecording = false;
+  bool _recordingDone = false;
+  int _secondsLeft = _sessionSeconds;
+  Timer? _timer;
 
-  Future<void> _pickImage(ImageSource source) async {
-    final XFile? image = await _picker.pickImage(source: source);
-    if (image == null || !mounted) {
-      return;
-    }
+  // ── Dialog guard ─────────────────────────────────────────────────────────────
+  bool _loadingVisible = false;
+
+  // ── Lifecycle ────────────────────────────────────────────────────────────────
+  @override
+  void initState() {
+    super.initState();
+    _faceDetector = FaceDetector(
+      options: FaceDetectorOptions(
+        enableLandmarks: true,
+        performanceMode: FaceDetectorMode.fast,
+        minFaceSize: 0.15,
+      ),
+    );
+    _initCamera();
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _camera?.stopImageStream();
+    _camera?.dispose();
+    _faceDetector?.close();
+    super.dispose();
+  }
+
+  // ── Camera init ──────────────────────────────────────────────────────────────
+  Future<void> _initCamera() async {
+    final status = await Permission.camera.request();
+    if (!status.isGranted || !mounted) return;
+
+    final cameras = await availableCameras();
+    final front = cameras.firstWhere(
+      (c) => c.lensDirection == CameraLensDirection.front,
+      orElse: () => cameras.first,
+    );
+
+    _camera = CameraController(
+      front,
+      ResolutionPreset.medium, // 640×480 — good fps, enough for ML Kit
+      enableAudio: false,
+      imageFormatGroup: ImageFormatGroup.nv21, // required for ML Kit on Android
+    );
+
+    await _camera!.initialize();
+    if (mounted) setState(() {});
+  }
+
+  // ── Recording ────────────────────────────────────────────────────────────────
+  void _startRecording() {
+    if (_camera == null || !_camera!.value.isInitialized) return;
 
     setState(() {
-      _pickedImagePath = image.path;
-      _generatedScanPath = const [];
+      _gazePoints.clear();
+      _pointIndex = 0;
+      _lastTimestampMs = null;
+      _isRecording = true;
+      _recordingDone = false;
+      _secondsLeft = _sessionSeconds;
+    });
+
+    // Countdown timer
+    _timer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (!mounted) {
+        t.cancel();
+        return;
+      }
+      setState(() => _secondsLeft--);
+      if (_secondsLeft <= 0) {
+        t.cancel();
+        _stopRecording();
+      }
+    });
+
+    // Start frame stream
+    _camera!.startImageStream(_onFrame);
+  }
+
+  void _stopRecording() {
+    _timer?.cancel();
+    _camera?.stopImageStream();
+    if (!mounted) return;
+    setState(() {
+      _isRecording = false;
+      _recordingDone = true;
     });
   }
 
-  void _showLoadingDialog() {
-    if (_isLoadingDialogVisible) {
-      return;
-    }
+  // ── Per-frame ML Kit processing ───────────────────────────────────────────────
+  Future<void> _onFrame(CameraImage image) async {
+    if (_isDetecting || !_isRecording) return;
+    _isDetecting = true;
 
-    _isLoadingDialogVisible = true;
-    showAppLoading(context, 'جاري تحليل الصورة...');
+    try {
+      final inputImage = _toInputImage(image);
+      if (inputImage == null) return;
+
+      final faces = await _faceDetector!.processImage(inputImage);
+      if (faces.isEmpty || !mounted) return;
+
+      final face = faces.first;
+      final leftEye = face.landmarks[FaceLandmarkType.leftEye];
+      final rightEye = face.landmarks[FaceLandmarkType.rightEye];
+
+      if (leftEye == null && rightEye == null) return;
+
+      // Average both eye positions → single gaze point
+      final double gazeX;
+      final double gazeY;
+      if (leftEye != null && rightEye != null) {
+        gazeX = (leftEye.position.x + rightEye.position.x) / 2.0;
+        gazeY = (leftEye.position.y + rightEye.position.y) / 2.0;
+      } else {
+        final eye = leftEye ?? rightEye!;
+        gazeX = eye.position.x.toDouble();
+        gazeY = eye.position.y.toDouble();
+      }
+
+      // Real elapsed time since last point (ms) — this is the real duration
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final duration =
+          _lastTimestampMs == null ? 34 : (now - _lastTimestampMs!).clamp(10, 500);
+      _lastTimestampMs = now;
+
+      // Camera image is 640×480 → x: 0–640, y: 0–480
+      // API example values: x≈550–666, y≈700–867
+      // These are the same order of magnitude ✅
+      if (mounted) {
+        setState(() {
+          _gazePoints.add(ScanPoint(
+            idx: _pointIndex++,
+            x: gazeX,
+            y: gazeY,
+            duration: duration,
+          ));
+        });
+      }
+    } finally {
+      _isDetecting = false;
+    }
   }
 
-  void _hideLoadingDialog() {
-    if (!_isLoadingDialogVisible) {
-      return;
-    }
+  InputImage? _toInputImage(CameraImage image) {
+    final rotation = InputImageRotationValue.fromRawValue(
+      _camera!.description.sensorOrientation,
+    );
+    final format = InputImageFormatValue.fromRawValue(image.format.raw);
+    if (rotation == null || format == null) return null;
 
-    Navigator.of(context, rootNavigator: true).pop();
-    _isLoadingDialogVisible = false;
+    return InputImage.fromBytes(
+      bytes: image.planes.first.bytes,
+      metadata: InputImageMetadata(
+        size: Size(image.width.toDouble(), image.height.toDouble()),
+        rotation: rotation,
+        format: format,
+        bytesPerRow: image.planes.first.bytesPerRow,
+      ),
+    );
   }
 
-  Future<void> _submitScan() async {
-    if (_pickedImagePath == null) {
+  // ── Submit ────────────────────────────────────────────────────────────────────
+  void _submit() {
+    if (_gazePoints.length < _minPoints) {
       CustomSnackBar.show(
         context,
-        message: 'التقط صورة أو ارفع صورة أولاً.',
+        message:
+            'لم يتم التقاط نقاط كافية. تأكد أن وجه الطفل واضح أمام الكاميرا.',
         state: SnackBarState.warning,
       );
       return;
     }
 
-    final scanPath = _generatedScanPath.isEmpty
-        ? await _buildAutomaticScanPath()
-        : _generatedScanPath;
-
-    if (!mounted) {
-      return;
-    }
-
-    if (scanPath.length < _minimumRequiredPoints) {
-      CustomSnackBar.show(
-        context,
-        message: 'تعذر تجهيز مسار التحليل. حاول إعادة التقاط الصورة.',
-        state: SnackBarState.error,
-      );
-      return;
-    }
-
-    setState(() {
-      _generatedScanPath = scanPath;
-    });
-
     context.read<EyeScanCubit>().analyzeEyeScan(
-      childId: 1,
-      notes: '',
-      scanPath: scanPath,
-    );
-  }
-
-  Future<List<ScanPoint>> _buildAutomaticScanPath() async {
-    await WidgetsBinding.instance.endOfFrame;
-
-    final renderObject = _overlayKey.currentContext?.findRenderObject();
-    if (renderObject is! RenderBox || _pickedImagePath == null) {
-      return const [];
-    }
-
-    final overlayOrigin = renderObject.localToGlobal(Offset.zero);
-    final overlaySize = renderObject.size;
-    final anchors = await _extractAnchorsFromImage(overlaySize);
-    final denseLocalPath = _buildDensePath(
-      anchors.isEmpty ? _fallbackAnchors(overlaySize) : anchors,
-      overlaySize,
-    );
-
-    return List<ScanPoint>.generate(denseLocalPath.length, (index) {
-      final point = denseLocalPath[index];
-      return ScanPoint(
-        idx: index,
-        x: (overlayOrigin.dx + point.dx).roundToDouble(),
-        y: (overlayOrigin.dy + point.dy).roundToDouble(),
-        duration: _dwellPattern[index % _dwellPattern.length],
-      );
-    });
-  }
-
-  Future<List<Offset>> _extractAnchorsFromImage(Size overlaySize) async {
-    final decoded = await _decodeImage(_pickedImagePath!);
-    if (decoded == null) {
-      return const [];
-    }
-
-    const int columns = 6;
-    const int rows = 4;
-    final candidates = <_CellCandidate>[];
-
-    for (var row = 0; row < rows; row++) {
-      for (var column = 0; column < columns; column++) {
-        final startX = (decoded.width * column / columns).floor();
-        final endX = (decoded.width * (column + 1) / columns).floor();
-        final startY = (decoded.height * row / rows).floor();
-        final endY = (decoded.height * (row + 1) / rows).floor();
-
-        final score = _scoreCell(
-          decoded.bytes,
-          decoded.width,
-          startX,
-          endX,
-          startY,
-          endY,
+          childId: 1, // TODO: replace with real childId from session/storage
+          notes: '',
+          scanPath: List.unmodifiable(_gazePoints),
         );
-
-        final normalizedX = (column + 0.5) / columns;
-        final normalizedY = (row + 0.5) / rows;
-        final centerBias =
-            1 -
-            (((normalizedX - 0.5).abs() * 0.8) +
-                ((normalizedY - 0.38).abs() * 1.1));
-
-        candidates.add(
-          _CellCandidate(
-            point: Offset(
-              overlaySize.width * normalizedX,
-              overlaySize.height * normalizedY,
-            ),
-            score: score * (0.85 + math.max(0, centerBias)),
-          ),
-        );
-      }
-    }
-
-    candidates.sort((a, b) => b.score.compareTo(a.score));
-    final selected = candidates.take(8).map((candidate) => candidate.point);
-
-    final start = Offset(overlaySize.width * 0.5, overlaySize.height * 0.24);
-    final orderedAnchors = <Offset>[start];
-    final remaining = selected.toList();
-    var current = start;
-
-    while (remaining.isNotEmpty) {
-      remaining.sort(
-        (a, b) => _distanceSquared(
-          current,
-          a,
-        ).compareTo(_distanceSquared(current, b)),
-      );
-
-      final next = remaining.removeAt(0);
-      if (_distanceSquared(current, next) > 400) {
-        orderedAnchors.add(next);
-        current = next;
-      }
-    }
-
-    orderedAnchors.add(
-      Offset(overlaySize.width * 0.5, overlaySize.height * 0.62),
-    );
-
-    return orderedAnchors;
   }
 
-  Future<_DecodedImageData?> _decodeImage(String imagePath) async {
-    try {
-      final bytes = await File(imagePath).readAsBytes();
-      final codec = await ui.instantiateImageCodec(
-        bytes,
-        targetWidth: 120,
-        targetHeight: 120,
-      );
-
-      try {
-        final frame = await codec.getNextFrame();
-        final image = frame.image;
-
-        try {
-          final byteData = await image.toByteData(
-            format: ui.ImageByteFormat.rawRgba,
-          );
-
-          if (byteData == null) {
-            return null;
-          }
-
-          return _DecodedImageData(
-            bytes: byteData.buffer.asUint8List(),
-            width: image.width,
-            height: image.height,
-          );
-        } finally {
-          image.dispose();
-        }
-      } finally {
-        codec.dispose();
-      }
-    } catch (_) {
-      return null;
-    }
+  void _showLoading() {
+    if (_loadingVisible) return;
+    _loadingVisible = true;
+    showAppLoading(context, 'جاري تحليل البيانات...');
   }
 
-  double _scoreCell(
-    Uint8List bytes,
-    int width,
-    int startX,
-    int endX,
-    int startY,
-    int endY,
-  ) {
-    double sum = 0;
-    double sumSquares = 0;
-    double edges = 0;
-    int count = 0;
-
-    for (var y = startY; y < endY; y += 2) {
-      for (var x = startX; x < endX; x += 2) {
-        final luminance = _luminanceAt(bytes, width, x, y);
-        sum += luminance;
-        sumSquares += luminance * luminance;
-        count++;
-
-        if (x + 1 < endX) {
-          edges += (luminance - _luminanceAt(bytes, width, x + 1, y)).abs();
-        }
-        if (y + 1 < endY) {
-          edges += (luminance - _luminanceAt(bytes, width, x, y + 1)).abs();
-        }
-      }
-    }
-
-    if (count == 0) {
-      return 0;
-    }
-
-    final mean = sum / count;
-    final variance = (sumSquares / count) - (mean * mean);
-
-    return variance + (edges / count);
+  void _hideLoading() {
+    if (!_loadingVisible) return;
+    Navigator.of(context, rootNavigator: true).pop();
+    _loadingVisible = false;
   }
 
-  double _luminanceAt(Uint8List bytes, int width, int x, int y) {
-    final index = ((y * width) + x) * 4;
-    final red = bytes[index];
-    final green = bytes[index + 1];
-    final blue = bytes[index + 2];
-    return (0.299 * red) + (0.587 * green) + (0.114 * blue);
-  }
-
-  List<Offset> _buildDensePath(List<Offset> anchors, Size overlaySize) {
-    final safeAnchors = anchors.isEmpty
-        ? _fallbackAnchors(overlaySize)
-        : anchors;
-    final densePoints = <Offset>[safeAnchors.first];
-
-    for (var index = 0; index < safeAnchors.length - 1; index++) {
-      final start = safeAnchors[index];
-      final end = safeAnchors[index + 1];
-
-      densePoints.add(Offset.lerp(start, end, 0.33)!);
-      densePoints.add(Offset.lerp(start, end, 0.66)!);
-      densePoints.add(end);
-    }
-
-    while (densePoints.length < _targetPointCount) {
-      final seed = densePoints.length;
-      final base = safeAnchors[seed % safeAnchors.length];
-      final xJitter = ((seed % 5) - 2) * 8.0;
-      final yJitter = ((seed % 3) - 1) * 6.0;
-
-      densePoints.add(
-        Offset(
-          (base.dx + (xJitter == 0 ? 5.0 : xJitter)).clamp(
-            0.0,
-            overlaySize.width,
-          ),
-          (base.dy + (yJitter == 0 ? 4.0 : yJitter)).clamp(
-            0.0,
-            overlaySize.height,
-          ),
-        ),
-      );
-    }
-
-    return densePoints.take(_targetPointCount).toList();
-  }
-
-  List<Offset> _fallbackAnchors(Size overlaySize) {
-    return [
-      Offset(overlaySize.width * 0.50, overlaySize.height * 0.24),
-      Offset(overlaySize.width * 0.36, overlaySize.height * 0.28),
-      Offset(overlaySize.width * 0.64, overlaySize.height * 0.28),
-      Offset(overlaySize.width * 0.30, overlaySize.height * 0.38),
-      Offset(overlaySize.width * 0.70, overlaySize.height * 0.38),
-      Offset(overlaySize.width * 0.44, overlaySize.height * 0.48),
-      Offset(overlaySize.width * 0.56, overlaySize.height * 0.48),
-      Offset(overlaySize.width * 0.50, overlaySize.height * 0.62),
-    ];
-  }
-
-  double _distanceSquared(Offset a, Offset b) {
-    final dx = a.dx - b.dx;
-    final dy = a.dy - b.dy;
-    return (dx * dx) + (dy * dy);
-  }
-
+  // ── UI ────────────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return BlocConsumer<EyeScanCubit, EyeScanState>(
       listener: (context, state) {
         state.whenOrNull(
-          loading: _showLoadingDialog,
+          loading: _showLoading,
           success: (response) {
-            _hideLoadingDialog();
-            if (!mounted) {
-              return;
-            }
-
+            _hideLoading();
+            if (!mounted) return;
             Navigator.pushNamed(
               context,
               Routes.scanResultScreen,
@@ -386,7 +248,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
             );
           },
           error: (error) {
-            _hideLoadingDialog();
+            _hideLoading();
             CustomSnackBar.show(
               context,
               message: error.message,
@@ -406,6 +268,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
           body: SafeArea(
             child: Column(
               children: [
+                // Close button
                 Align(
                   alignment: Alignment.topRight,
                   child: IconButton(
@@ -413,7 +276,9 @@ class _ScannerScreenState extends State<ScannerScreen> {
                     icon: Icon(Icons.close, color: Colors.white, size: 30.r),
                   ),
                 ),
-                SizedBox(height: 20.h),
+
+                SizedBox(height: 10.h),
+
                 Text(
                   'ابدأ المسح الآن',
                   style: TextStyles.font24GradientExtraBold.copyWith(
@@ -422,43 +287,81 @@ class _ScannerScreenState extends State<ScannerScreen> {
                   ),
                   textAlign: TextAlign.center,
                 ),
-                SizedBox(height: 10.h),
+
+                SizedBox(height: 8.h),
+
                 Text(
-                  'وجه الكاميرا نحو الطفل أو اختر صورة واضحة، وسيتم تجهيز مسار التحليل تلقائياً.',
+                  _isRecording
+                      ? 'وجه الكاميرا نحو عيني الطفل'
+                      : _recordingDone
+                          ? 'اكتمل التسجيل — اضغط تأكيد للتحليل'
+                          : 'وجه الكاميرا الأمامية نحو الطفل واضغط ابدأ',
                   style: TextStyles.font14GreyMedium.copyWith(
-                    color: Colors.white.withValues(alpha: 0.8),
+                    color: Colors.white.withOpacity(0.8),
                   ),
                   textAlign: TextAlign.center,
                 ),
-                SizedBox(height: 30.h),
-                _buildScannerOverlay(),
+
+                SizedBox(height: 20.h),
+
+                // Camera preview — same position as the old image overlay
+                _buildCameraPreview(),
+
                 const Spacer(),
-                if (_pickedImagePath != null)
-                  ElevatedButton(
-                    onPressed: isSubmitting ? null : _submitScan,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                      disabledBackgroundColor: Colors.blue.withValues(
-                        alpha: 0.4,
+
+                // Stats row (shown once recording starts)
+                if (_isRecording || _recordingDone)
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _buildChip(
+                        label: 'النقاط',
+                        value: '${_gazePoints.length}',
+                        color: _gazePoints.length >= _minPoints
+                            ? Colors.greenAccent
+                            : Colors.orangeAccent,
                       ),
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 40.w,
-                        vertical: 12.h,
-                      ),
+                      if (_isRecording) ...[
+                        SizedBox(width: 20.w),
+                        _buildChip(
+                          label: 'الوقت',
+                          value: '${_secondsLeft}s',
+                          color: Colors.blueAccent,
+                        ),
+                      ],
+                    ],
+                  ),
+
+                const Spacer(),
+
+                // Action button
+                ElevatedButton(
+                  onPressed: isSubmitting
+                      ? null
+                      : _recordingDone
+                          ? _submit
+                          : _isRecording
+                              ? null
+                              : _startRecording,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor:
+                        _recordingDone ? Colors.blue : Colors.blueAccent,
+                    disabledBackgroundColor: Colors.blue.withOpacity(0.4),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 40.w,
+                      vertical: 12.h,
                     ),
-                    child: Text('تأكيد', style: TextStyles.font16WhiteSemiBold),
-                  )
-                else
-                  _buildLoadingIndicator(),
-                const Spacer(),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    _buildUploadOption(),
-                    SizedBox(width: 40.w),
-                    _buildCaptureOption(),
-                  ],
+                  ),
+                  child: Text(
+                    _isRecording
+                        ? 'جاري التسجيل...'
+                        : _recordingDone
+                            ? 'تأكيد'
+                            : 'ابدأ',
+                    style: TextStyles.font16WhiteSemiBold,
+                  ),
                 ),
+
                 SizedBox(height: 40.h),
               ],
             ),
@@ -468,123 +371,65 @@ class _ScannerScreenState extends State<ScannerScreen> {
     );
   }
 
-  Widget _buildScannerOverlay() {
+  Widget _buildCameraPreview() {
+    // Same size as the old overlay box
     return Container(
-      key: _overlayKey,
       width: 330.w,
       height: 200.h,
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.2),
+        color: Colors.white.withOpacity(0.1),
         borderRadius: BorderRadius.circular(20.r),
         border: Border.all(color: Colors.white, width: 2),
       ),
-      child: Stack(
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(18.r),
+        child: (_camera == null || !_camera!.value.isInitialized)
+            ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const CircularProgressIndicator(color: Colors.white54),
+                    SizedBox(height: 8.h),
+                    Text(
+                      'جاري تهيئة الكاميرا...',
+                      style: TextStyles.font12BlackRegular
+                          .copyWith(color: Colors.white54),
+                    ),
+                  ],
+                ),
+              )
+            : CameraPreview(_camera!),
+      ),
+    );
+  }
+
+  Widget _buildChip({
+    required String label,
+    required String value,
+    required Color color,
+  }) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
+      decoration: BoxDecoration(
+        color: Colors.white12,
+        borderRadius: BorderRadius.circular(12.r),
+      ),
+      child: Column(
         children: [
-          if (_pickedImagePath != null)
-            ClipRRect(
-              borderRadius: BorderRadius.circular(18.r),
-              child: Image.file(
-                File(_pickedImagePath!),
-                width: 330.w,
-                height: 200.h,
-                fit: BoxFit.cover,
-              ),
-            )
-          else
-            Center(
-              child: Container(width: 310.w, height: 2.h, color: Colors.orange),
+          Text(
+            value,
+            style: TextStyle(
+              color: color,
+              fontSize: 18.sp,
+              fontWeight: FontWeight.bold,
             ),
+          ),
+          Text(
+            label,
+            style: TextStyle(color: Colors.white54, fontSize: 11.sp),
+          ),
         ],
       ),
     );
   }
-
-  Widget _buildLoadingIndicator() {
-    return Column(
-      children: [
-        SizedBox(
-          width: 80.r,
-          height: 80.r,
-          child: CircularProgressIndicator(
-            value: 0.7,
-            strokeWidth: 8.r,
-            backgroundColor: Colors.white.withValues(alpha: 0.2),
-            valueColor: const AlwaysStoppedAnimation<Color>(Colors.blue),
-          ),
-        ),
-        SizedBox(height: 20.h),
-        Text(
-          'التقط صورة لبدء التحليل',
-          style: TextStyles.font20BlackSemiBold.copyWith(color: Colors.white),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildUploadOption() {
-    return Column(
-      children: [
-        IconButton(
-          onPressed: () => _pickImage(ImageSource.gallery),
-          icon: Icon(Icons.cloud_upload, color: Colors.white, size: 40.r),
-        ),
-        Text(
-          'رفع صورة',
-          style: TextStyles.font12BlackRegular.copyWith(color: Colors.white),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildCaptureOption() {
-    return Column(
-      children: [
-        GestureDetector(
-          onTap: () => _pickImage(ImageSource.camera),
-          child: Container(
-            width: 80.r,
-            height: 80.r,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.white, width: 4),
-            ),
-            child: Center(
-              child: Container(
-                width: 60.r,
-                height: 60.r,
-                decoration: const BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-          ),
-        ),
-        SizedBox(height: 4.h),
-        Text(
-          'التقاط',
-          style: TextStyles.font12BlackRegular.copyWith(color: Colors.white),
-        ),
-      ],
-    );
-  }
-}
-
-class _DecodedImageData {
-  final Uint8List bytes;
-  final int width;
-  final int height;
-
-  const _DecodedImageData({
-    required this.bytes,
-    required this.width,
-    required this.height,
-  });
-}
-
-class _CellCandidate {
-  final Offset point;
-  final double score;
-
-  const _CellCandidate({required this.point, required this.score});
 }
