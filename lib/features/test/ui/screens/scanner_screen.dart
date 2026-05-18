@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
@@ -13,6 +14,7 @@ import 'package:soliel/core/widgets/custom_snack_bar.dart';
 import 'package:soliel/features/test/data/models/scan_point.dart';
 import 'package:soliel/features/test/logic/eye_scan_cubit/eye_scan_cubit.dart';
 import 'package:soliel/features/test/logic/eye_scan_cubit/eye_scan_state.dart';
+import 'package:soliel/features/test/ui/utils/detect_eye.dart';
 
 class ScannerScreen extends StatefulWidget {
   const ScannerScreen({super.key});
@@ -23,15 +25,18 @@ class ScannerScreen extends StatefulWidget {
 
 class _ScannerScreenState extends State<ScannerScreen> {
   // ── Config ───────────────────────────────────────────────────────────────────
-  static const int _sessionSeconds = 10; // how long to record
-  static const int _minPoints = 15; // matches API minimum
+  static const int _sessionSeconds = 12;
+  static const int _minPoints = 35;
+  static const double _pointResolution = 1000.0;
 
-  // ── Camera + ML Kit ──────────────────────────────────────────────────────────
+  // ── Camera & Detectors ───────────────────────────────────────────────────────
   CameraController? _camera;
-  FaceDetector? _faceDetector;
+  final EyeDetector _eyeDetector = EyeDetector();
+  final GazeSmoother _smoother = GazeSmoother();
+
   bool _isDetecting = false;
 
-  // ── Recording state ──────────────────────────────────────────────────────────
+  // ── Recording State ─────────────────────────────────────────────────────────
   final List<ScanPoint> _gazePoints = [];
   int _pointIndex = 0;
   int? _lastTimestampMs;
@@ -40,20 +45,12 @@ class _ScannerScreenState extends State<ScannerScreen> {
   int _secondsLeft = _sessionSeconds;
   Timer? _timer;
 
-  // ── Dialog guard ─────────────────────────────────────────────────────────────
+  bool _faceVisible = false;
   bool _loadingVisible = false;
 
-  // ── Lifecycle ────────────────────────────────────────────────────────────────
   @override
   void initState() {
     super.initState();
-    _faceDetector = FaceDetector(
-      options: FaceDetectorOptions(
-        enableLandmarks: true,
-        performanceMode: FaceDetectorMode.fast,
-        minFaceSize: 0.15,
-      ),
-    );
     _initCamera();
   }
 
@@ -62,11 +59,10 @@ class _ScannerScreenState extends State<ScannerScreen> {
     _timer?.cancel();
     _camera?.stopImageStream();
     _camera?.dispose();
-    _faceDetector?.close();
+    _eyeDetector.dispose();
     super.dispose();
   }
 
-  // ── Camera init ──────────────────────────────────────────────────────────────
   Future<void> _initCamera() async {
     final status = await Permission.camera.request();
     if (!status.isGranted || !mounted) return;
@@ -79,29 +75,27 @@ class _ScannerScreenState extends State<ScannerScreen> {
 
     _camera = CameraController(
       front,
-      ResolutionPreset.medium, // 640×480 — good fps, enough for ML Kit
+      ResolutionPreset.veryHigh,
       enableAudio: false,
-      imageFormatGroup: ImageFormatGroup.nv21, // required for ML Kit on Android
+      imageFormatGroup: ImageFormatGroup.nv21,
     );
 
     await _camera!.initialize();
     if (mounted) setState(() {});
   }
 
-  // ── Recording ────────────────────────────────────────────────────────────────
+  // ── Recording Controls ───────────────────────────────────────────────────────
   void _startRecording() {
-    if (_camera == null || !_camera!.value.isInitialized) return;
-
     setState(() {
       _gazePoints.clear();
       _pointIndex = 0;
       _lastTimestampMs = null;
+      _smoother.reset();
       _isRecording = true;
       _recordingDone = false;
       _secondsLeft = _sessionSeconds;
     });
 
-    // Countdown timer
     _timer = Timer.periodic(const Duration(seconds: 1), (t) {
       if (!mounted) {
         t.cancel();
@@ -114,115 +108,115 @@ class _ScannerScreenState extends State<ScannerScreen> {
       }
     });
 
-    // Start frame stream
     _camera!.startImageStream(_onFrame);
   }
 
   void _stopRecording() {
     _timer?.cancel();
     _camera?.stopImageStream();
-    if (!mounted) return;
-    setState(() {
-      _isRecording = false;
-      _recordingDone = true;
-    });
+    if (mounted) {
+      setState(() {
+        _isRecording = false;
+        _recordingDone = true;
+      });
+    }
   }
 
-  // ── Per-frame ML Kit processing ───────────────────────────────────────────────
+  // ── Main Frame Processing ───────────────────────────────────────────────────
   Future<void> _onFrame(CameraImage image) async {
     if (_isDetecting || !_isRecording) return;
     _isDetecting = true;
 
     try {
-      final inputImage = _toInputImage(image);
-      if (inputImage == null) return;
+      final result = await _eyeDetector.detectGazePoint(
+        image,
+        _camera!.description,
+      );
 
-      final faces = await _faceDetector!.processImage(inputImage);
-      if (faces.isEmpty || !mounted) return;
-
-      final face = faces.first;
-      final leftEye = face.landmarks[FaceLandmarkType.leftEye];
-      final rightEye = face.landmarks[FaceLandmarkType.rightEye];
-
-      if (leftEye == null && rightEye == null) return;
-
-      // Average both eye positions → single gaze point
-      final double gazeX;
-      final double gazeY;
-      if (leftEye != null && rightEye != null) {
-        gazeX = (leftEye.position.x + rightEye.position.x) / 2.0;
-        gazeY = (leftEye.position.y + rightEye.position.y) / 2.0;
-      } else {
-        final eye = leftEye ?? rightEye!;
-        gazeX = eye.position.x.toDouble();
-        gazeY = eye.position.y.toDouble();
+      if (result == null) {
+        if (_faceVisible) setState(() => _faceVisible = false);
+        return;
       }
 
-      // Real elapsed time since last point (ms) — this is the real duration
+      if (!_faceVisible) setState(() => _faceVisible = true);
+
+      final smoothed = _smoother.addPoint(result['normX']!, result['normY']!);
+
+      // ── Advanced Filters ───────────────────────────────────────────────────
+      if (_gazePoints.isNotEmpty) {
+        final last = _gazePoints.last;
+        final prevX = last.x / _pointResolution;
+        final prevY = last.y / _pointResolution;
+
+        final jump = math.sqrt(
+          math.pow(smoothed['x']! - prevX, 2) +
+              math.pow(smoothed['y']! - prevY, 2),
+        );
+
+        if (jump > 0.085) return; // Reject sudden jumps
+      }
+
+      if (_gazePoints.isNotEmpty) {
+        final last = _gazePoints.last;
+        final prevX = last.x / _pointResolution;
+        final prevY = last.y / _pointResolution;
+
+        final dist = math.sqrt(
+          math.pow(smoothed['x']! - prevX, 2) +
+              math.pow(smoothed['y']! - prevY, 2),
+        );
+
+        if (dist < 0.0028) return; // Minimum movement
+      }
+
+      // ── Add Point ───────────────────────────────────────────────────────────
+      final scaledX = (smoothed['x']! * _pointResolution).roundToDouble();
+      final scaledY = (smoothed['y']! * _pointResolution).roundToDouble();
+
       final now = DateTime.now().millisecondsSinceEpoch;
-      final duration =
-          _lastTimestampMs == null ? 34 : (now - _lastTimestampMs!).clamp(10, 500);
+      final duration = _lastTimestampMs == null
+          ? 34
+          : (now - _lastTimestampMs!).clamp(10, 500);
       _lastTimestampMs = now;
 
-      // Camera image is 640×480 → x: 0–640, y: 0–480
-      // API example values: x≈550–666, y≈700–867
-      // These are the same order of magnitude ✅
-      if (mounted) {
-        setState(() {
-          _gazePoints.add(ScanPoint(
+      setState(() {
+        _gazePoints.add(
+          ScanPoint(
             idx: _pointIndex++,
-            x: gazeX,
-            y: gazeY,
+            x: scaledX,
+            y: scaledY,
             duration: duration,
-          ));
-        });
-      }
+          ),
+        );
+      });
     } finally {
       _isDetecting = false;
     }
   }
 
-  InputImage? _toInputImage(CameraImage image) {
-    final rotation = InputImageRotationValue.fromRawValue(
-      _camera!.description.sensorOrientation,
-    );
-    final format = InputImageFormatValue.fromRawValue(image.format.raw);
-    if (rotation == null || format == null) return null;
-
-    return InputImage.fromBytes(
-      bytes: image.planes.first.bytes,
-      metadata: InputImageMetadata(
-        size: Size(image.width.toDouble(), image.height.toDouble()),
-        rotation: rotation,
-        format: format,
-        bytesPerRow: image.planes.first.bytesPerRow,
-      ),
-    );
-  }
-
-  // ── Submit ────────────────────────────────────────────────────────────────────
+  // ── Submit ───────────────────────────────────────────────────────────────────
   void _submit() {
     if (_gazePoints.length < _minPoints) {
       CustomSnackBar.show(
         context,
         message:
-            'لم يتم التقاط نقاط كافية. تأكد أن وجه الطفل واضح أمام الكاميرا.',
+            'تم التقاط ${_gazePoints.length} نقطة فقط. نحتاج $_minPoints على الأقل.',
         state: SnackBarState.warning,
       );
       return;
     }
 
     context.read<EyeScanCubit>().analyzeEyeScan(
-          childId: 1, // TODO: replace with real childId from session/storage
-          notes: '',
-          scanPath: List.unmodifiable(_gazePoints),
-        );
+      childId: 1,
+      notes: '',
+      scanPath: List.unmodifiable(_gazePoints),
+    );
   }
 
   void _showLoading() {
     if (_loadingVisible) return;
     _loadingVisible = true;
-    showAppLoading(context, 'جاري تحليل البيانات...');
+    showAppLoading(context, 'جاري تحليل مسار العين...');
   }
 
   void _hideLoading() {
@@ -231,7 +225,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
     _loadingVisible = false;
   }
 
-  // ── UI ────────────────────────────────────────────────────────────────────────
+  // ── UI ───────────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return BlocConsumer<EyeScanCubit, EyeScanState>(
@@ -264,11 +258,10 @@ class _ScannerScreenState extends State<ScannerScreen> {
         );
 
         return Scaffold(
-          backgroundColor: const Color(0xFF3F3F3F),
+          backgroundColor: const Color(0xFF1A1A1A),
           body: SafeArea(
             child: Column(
               children: [
-                // Close button
                 Align(
                   alignment: Alignment.topRight,
                   child: IconButton(
@@ -276,92 +269,39 @@ class _ScannerScreenState extends State<ScannerScreen> {
                     icon: Icon(Icons.close, color: Colors.white, size: 30.r),
                   ),
                 ),
-
                 SizedBox(height: 10.h),
-
                 Text(
-                  'ابدأ المسح الآن',
+                  'فحص تتبع العين',
                   style: TextStyles.font24GradientExtraBold.copyWith(
                     color: Colors.white,
-                    fontSize: 30.sp,
+                    fontSize: 28.sp,
                   ),
-                  textAlign: TextAlign.center,
                 ),
-
                 SizedBox(height: 8.h),
-
-                Text(
-                  _isRecording
-                      ? 'وجه الكاميرا نحو عيني الطفل'
-                      : _recordingDone
-                          ? 'اكتمل التسجيل — اضغط تأكيد للتحليل'
-                          : 'وجه الكاميرا الأمامية نحو الطفل واضغط ابدأ',
-                  style: TextStyles.font14GreyMedium.copyWith(
-                    color: Colors.white.withOpacity(0.8),
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-
-                SizedBox(height: 20.h),
-
-                // Camera preview — same position as the old image overlay
-                _buildCameraPreview(),
-
+                _buildStatusBanner(),
+                SizedBox(height: 15.h),
+                _buildScanningArea(),
                 const Spacer(),
-
-                // Stats row (shown once recording starts)
                 if (_isRecording || _recordingDone)
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      _buildChip(
-                        label: 'النقاط',
-                        value: '${_gazePoints.length}',
-                        color: _gazePoints.length >= _minPoints
+                      _buildMiniStat(
+                        'النقاط',
+                        '${_gazePoints.length}',
+                        _gazePoints.length >= _minPoints
                             ? Colors.greenAccent
                             : Colors.orangeAccent,
                       ),
-                      if (_isRecording) ...[
-                        SizedBox(width: 20.w),
-                        _buildChip(
-                          label: 'الوقت',
-                          value: '${_secondsLeft}s',
-                          color: Colors.blueAccent,
-                        ),
-                      ],
+                      _buildMiniStat(
+                        'الثواني',
+                        '${_secondsLeft}s',
+                        Colors.blueAccent,
+                      ),
                     ],
                   ),
-
                 const Spacer(),
-
-                // Action button
-                ElevatedButton(
-                  onPressed: isSubmitting
-                      ? null
-                      : _recordingDone
-                          ? _submit
-                          : _isRecording
-                              ? null
-                              : _startRecording,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor:
-                        _recordingDone ? Colors.blue : Colors.blueAccent,
-                    disabledBackgroundColor: Colors.blue.withOpacity(0.4),
-                    padding: EdgeInsets.symmetric(
-                      horizontal: 40.w,
-                      vertical: 12.h,
-                    ),
-                  ),
-                  child: Text(
-                    _isRecording
-                        ? 'جاري التسجيل...'
-                        : _recordingDone
-                            ? 'تأكيد'
-                            : 'ابدأ',
-                    style: TextStyles.font16WhiteSemiBold,
-                  ),
-                ),
-
+                _buildPrimaryButton(isSubmitting),
                 SizedBox(height: 40.h),
               ],
             ),
@@ -371,48 +311,143 @@ class _ScannerScreenState extends State<ScannerScreen> {
     );
   }
 
-  Widget _buildCameraPreview() {
-    // Same size as the old overlay box
+  Widget _buildStatusBanner() {
+    String text;
+    Color color;
+    IconData icon;
+
+    if (!_isRecording && !_recordingDone) {
+      text = 'ضع وجه الطفل في الإطار واضغط ابدأ';
+      color = Colors.white70;
+      icon = Icons.info_outline;
+    } else if (_isRecording) {
+      if (_faceVisible) {
+        text = 'يتم الالتقاط... حافظ على ثبات الطفل';
+        color = Colors.greenAccent;
+        icon = Icons.visibility;
+      } else {
+        text = 'وجه الطفل غير واضح! أعد التصويب';
+        color = Colors.redAccent;
+        icon = Icons.visibility_off;
+      }
+    } else {
+      text = 'اكتملت البيانات. جاهز للتحليل';
+      color = Colors.blueAccent;
+      icon = Icons.check_circle;
+    }
+
     return Container(
-      width: 330.w,
-      height: 200.h,
+      margin: EdgeInsets.symmetric(horizontal: 20.w),
+      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(20.r),
-        border: Border.all(color: Colors.white, width: 2),
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(10.r),
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(18.r),
-        child: (_camera == null || !_camera!.value.isInitialized)
-            ? Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const CircularProgressIndicator(color: Colors.white54),
-                    SizedBox(height: 8.h),
-                    Text(
-                      'جاري تهيئة الكاميرا...',
-                      style: TextStyles.font12BlackRegular
-                          .copyWith(color: Colors.white54),
-                    ),
-                  ],
-                ),
-              )
-            : CameraPreview(_camera!),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: color, size: 18.r),
+          SizedBox(width: 8.w),
+          Text(
+            text,
+            style: TextStyle(color: color, fontSize: 13.sp),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildChip({
-    required String label,
-    required String value,
-    required Color color,
-  }) {
+  Widget _buildScanningArea() {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
+      width: 340.w,
+      height: 280.h,
       decoration: BoxDecoration(
-        color: Colors.white12,
-        borderRadius: BorderRadius.circular(12.r),
+        color: Colors.black,
+        borderRadius: BorderRadius.circular(24.r),
+        border: Border.all(
+          color: _isRecording && !_faceVisible
+              ? Colors.redAccent
+              : Colors.blueAccent.withOpacity(0.6),
+          width: 3,
+        ),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(21.r),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            if (_camera?.value.isInitialized == true)
+              CameraPreview(_camera!)
+            else
+              const Center(child: CircularProgressIndicator()),
+
+            if (_isRecording || _recordingDone)
+              CustomPaint(
+                painter: GazePathPainter(_gazePoints),
+                size: Size.infinite,
+              ),
+
+            if (!_isRecording && !_recordingDone)
+              Container(
+                color: Colors.black.withOpacity(0.4),
+                child: const Center(
+                  child: Icon(
+                    Icons.face_retouching_natural,
+                    color: Colors.white38,
+                    size: 90,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPrimaryButton(bool loading) {
+    VoidCallback? onPressed;
+    String text;
+    Color color = Colors.blueAccent;
+
+    if (loading) {
+      onPressed = null;
+      text = 'جاري المعالجة...';
+    } else if (_recordingDone) {
+      onPressed = _submit;
+      text = 'إرسال للتحليل';
+      color = Colors.green;
+    } else if (_isRecording) {
+      onPressed = null;
+      text = 'جاري التسجيل...';
+      color = Colors.grey;
+    } else {
+      onPressed = _startRecording;
+      text = 'ابدأ الفحص';
+    }
+
+    return ElevatedButton(
+      onPressed: onPressed,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: color,
+        foregroundColor: Colors.white,
+        padding: EdgeInsets.symmetric(horizontal: 60.w, vertical: 15.h),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(30.r),
+        ),
+        elevation: 5,
+      ),
+      child: Text(text, style: TextStyles.font16WhiteSemiBold),
+    );
+  }
+
+  Widget _buildMiniStat(String label, String value, Color color) {
+    return Container(
+      width: 100.w,
+      padding: EdgeInsets.symmetric(vertical: 10.h),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(15.r),
+        border: Border.all(color: Colors.white10),
       ),
       child: Column(
         children: [
@@ -420,16 +455,59 @@ class _ScannerScreenState extends State<ScannerScreen> {
             value,
             style: TextStyle(
               color: color,
-              fontSize: 18.sp,
+              fontSize: 22.sp,
               fontWeight: FontWeight.bold,
             ),
           ),
           Text(
             label,
-            style: TextStyle(color: Colors.white54, fontSize: 11.sp),
+            style: TextStyle(color: Colors.white54, fontSize: 12.sp),
           ),
         ],
       ),
     );
   }
+}
+
+// ── Gaze Path Painter ─────────────────────────────────────────────────────────
+class GazePathPainter extends CustomPainter {
+  final List<ScanPoint> points;
+
+  GazePathPainter(this.points);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (points.isEmpty) return;
+
+    final linePaint = Paint()
+      ..color = Colors.yellowAccent.withOpacity(0.75)
+      ..strokeWidth = 2.5
+      ..strokeCap = StrokeCap.round;
+
+    final dotPaint = Paint()..style = PaintingStyle.fill;
+
+    Offset? prev;
+
+    for (final point in points) {
+      final px = (point.x / 1000) * size.width;
+      final py = (point.y / 1000) * size.height;
+      final offset = Offset(px, py);
+
+      if (prev != null) canvas.drawLine(prev, offset, linePaint);
+
+      final radius = (3.0 + point.duration / 100).clamp(3.0, 11.0);
+
+      dotPaint.color = Colors.orangeAccent.withOpacity(0.7);
+      canvas.drawCircle(offset, radius, dotPaint);
+
+      dotPaint.color = Colors.white;
+      canvas.drawCircle(offset, 1.8, dotPaint);
+
+      prev = offset;
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant GazePathPainter oldDelegate) =>
+      oldDelegate.points.length != points.length;
 }
