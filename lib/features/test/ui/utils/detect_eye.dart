@@ -4,19 +4,23 @@ import 'package:camera/camera.dart';
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 
 class EyeDetector {
+  static const double _maxYaw = 22;
+  static const double _maxPitch = 18;
+  static const double _minEyeOpenProbability = 0.5;
+
   final FaceDetector _faceDetector;
 
   EyeDetector()
     : _faceDetector = FaceDetector(
         options: FaceDetectorOptions(
-          enableLandmarks: true,
+          enableContours: true,
           enableClassification: true,
           performanceMode: FaceDetectorMode.accurate,
-          minFaceSize: 0.2,
+          minFaceSize: 0.18,
         ),
       );
 
-  Future<Map<String, dynamic>?> detectGazePoint(
+  Future<Map<String, double>?> detectGazePoint(
     CameraImage image,
     CameraDescription camera,
   ) async {
@@ -27,48 +31,81 @@ class EyeDetector {
       final faces = await _faceDetector.processImage(inputImage);
       if (faces.isEmpty) return null;
 
-      final face = faces.first;
+      final face = _pickPrimaryFace(faces);
 
-      // Very strict quality filter
-      if ((face.headEulerAngleY ?? 0).abs() > 18 ||
-          (face.headEulerAngleX ?? 0).abs() > 15) {
-        return null;
-      }
-      if ((face.leftEyeOpenProbability ?? 1.0) < 0.55 ||
-          (face.rightEyeOpenProbability ?? 1.0) < 0.55) {
-        return null;
-      }
+      if (!_passesQualityFilters(face)) return null;
 
-      // Try to get better point using eyes + nose bridge if available
-      final leftEye = face.landmarks[FaceLandmarkType.leftEye];
-      final rightEye = face.landmarks[FaceLandmarkType.rightEye];
-      final noseBase = face.landmarks[FaceLandmarkType.noseBase];
+      final leftEyeCenter = _contourCenter(
+        face.contours[FaceContourType.leftEye],
+      );
+      final rightEyeCenter = _contourCenter(
+        face.contours[FaceContourType.rightEye],
+      );
 
-      if (leftEye == null && rightEye == null) return null;
+      if (leftEyeCenter == null && rightEyeCenter == null) return null;
 
-      double rawX, rawY;
+      final eyeCenter = _resolveEyeCenter(leftEyeCenter, rightEyeCenter);
 
-      if (leftEye != null && rightEye != null) {
-        rawX = (leftEye.position.x + rightEye.position.x) / 2;
-        rawY = (leftEye.position.y + rightEye.position.y) / 2;
+      final norm = _normalizeCoordinates(
+        eyeCenter.dx,
+        eyeCenter.dy,
+        image,
+        camera,
+      );
 
-        // Pull slightly toward nose base for better center
-        if (noseBase != null) {
-          rawX = rawX * 0.7 + noseBase.position.x * 0.3;
-          rawY = rawY * 0.75 + noseBase.position.y * 0.25;
-        }
-      } else {
-        final eye = leftEye ?? rightEye!;
-        rawX = eye.position.x.toDouble();
-        rawY = eye.position.y.toDouble();
-      }
-
-      final norm = _normalizeCoordinates(rawX, rawY, image, camera);
-
-      return {'normX': norm['x'], 'normY': norm['y']};
+      return {'normX': norm['x']!, 'normY': norm['y']!};
     } catch (e) {
       return null;
     }
+  }
+
+  Face _pickPrimaryFace(List<Face> faces) {
+    return faces.reduce((current, next) {
+      final currentArea =
+          current.boundingBox.width.abs() * current.boundingBox.height.abs();
+      final nextArea =
+          next.boundingBox.width.abs() * next.boundingBox.height.abs();
+      return currentArea >= nextArea ? current : next;
+    });
+  }
+
+  bool _passesQualityFilters(Face face) {
+    if ((face.headEulerAngleY ?? 0).abs() > _maxYaw ||
+        (face.headEulerAngleX ?? 0).abs() > _maxPitch) {
+      return false;
+    }
+
+    if ((face.leftEyeOpenProbability ?? 1.0) < _minEyeOpenProbability ||
+        (face.rightEyeOpenProbability ?? 1.0) < _minEyeOpenProbability) {
+      return false;
+    }
+
+    return true;
+  }
+
+  Offset? _contourCenter(FaceContour? contour) {
+    if (contour == null || contour.points.isEmpty) return null;
+
+    var sumX = 0.0;
+    var sumY = 0.0;
+
+    for (final point in contour.points) {
+      sumX += point.x.toDouble();
+      sumY += point.y.toDouble();
+    }
+
+    return Offset(sumX / contour.points.length, sumY / contour.points.length);
+  }
+
+  Offset _resolveEyeCenter(Offset? leftEyeCenter, Offset? rightEyeCenter) {
+    if (leftEyeCenter != null && rightEyeCenter != null) {
+      return Offset(
+        (leftEyeCenter.dx + rightEyeCenter.dx) / 2,
+        (leftEyeCenter.dy + rightEyeCenter.dy) / 2,
+      );
+    }
+
+    return leftEyeCenter ?? rightEyeCenter!;
   }
 
   Map<String, double> _normalizeCoordinates(
@@ -141,7 +178,7 @@ class GazeSmoother {
   double _smoothY = 0.5;
   bool _initialized = false;
 
-  GazeSmoother({this.bufferSize = 8});
+  GazeSmoother({this.bufferSize = 5});
 
   Map<String, double> addPoint(double normX, double normY) {
     _xBuffer.add(normX);
@@ -160,7 +197,7 @@ class GazeSmoother {
       _smoothY = avgY;
       _initialized = true;
     } else {
-      const emaAlpha = 0.22;
+      const emaAlpha = 0.38;
       _smoothX = emaAlpha * avgX + (1 - emaAlpha) * _smoothX;
       _smoothY = emaAlpha * avgY + (1 - emaAlpha) * _smoothY;
     }

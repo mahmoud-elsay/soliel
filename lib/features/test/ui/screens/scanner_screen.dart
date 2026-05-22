@@ -5,7 +5,6 @@ import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:soliel/core/routing/routes.dart';
 import 'package:soliel/core/theming/styles.dart';
@@ -28,6 +27,11 @@ class _ScannerScreenState extends State<ScannerScreen> {
   static const int _sessionSeconds = 12;
   static const int _minPoints = 35;
   static const double _pointResolution = 1000.0;
+  static const int _minSampleGapMs = 90;
+  static const double _maxJumpDistance = 0.18;
+  static const double _minMoveDistance = 0.001;
+  static const double _minAxisSpread = 0.11;
+  static const double _minBalancedSpread = 0.08;
 
   // ── Camera & Detectors ───────────────────────────────────────────────────────
   CameraController? _camera;
@@ -75,7 +79,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
 
     _camera = CameraController(
       front,
-      ResolutionPreset.veryHigh,
+      ResolutionPreset.high,
       enableAudio: false,
       imageFormatGroup: ImageFormatGroup.nv21,
     );
@@ -94,6 +98,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
       _isRecording = true;
       _recordingDone = false;
       _secondsLeft = _sessionSeconds;
+      _faceVisible = false;
     });
 
     _timer = Timer.periodic(const Duration(seconds: 1), (t) {
@@ -132,6 +137,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
         image,
         _camera!.description,
       );
+      if (!mounted || !_isRecording) return;
 
       if (result == null) {
         if (_faceVisible) setState(() => _faceVisible = false);
@@ -141,42 +147,35 @@ class _ScannerScreenState extends State<ScannerScreen> {
       if (!_faceVisible) setState(() => _faceVisible = true);
 
       final smoothed = _smoother.addPoint(result['normX']!, result['normY']!);
-
-      // ── Advanced Filters ───────────────────────────────────────────────────
-      if (_gazePoints.isNotEmpty) {
-        final last = _gazePoints.last;
-        final prevX = last.x / _pointResolution;
-        final prevY = last.y / _pointResolution;
-
-        final jump = math.sqrt(
-          math.pow(smoothed['x']! - prevX, 2) +
-              math.pow(smoothed['y']! - prevY, 2),
-        );
-
-        if (jump > 0.085) return; // Reject sudden jumps
-      }
+      final now = DateTime.now().millisecondsSinceEpoch;
 
       if (_gazePoints.isNotEmpty) {
         final last = _gazePoints.last;
         final prevX = last.x / _pointResolution;
         final prevY = last.y / _pointResolution;
 
-        final dist = math.sqrt(
+        final movement = math.sqrt(
           math.pow(smoothed['x']! - prevX, 2) +
               math.pow(smoothed['y']! - prevY, 2),
         );
 
-        if (dist < 0.0028) return; // Minimum movement
+        if (movement > _maxJumpDistance) return;
+
+        final elapsedMs = _lastTimestampMs == null
+            ? _minSampleGapMs
+            : now - _lastTimestampMs!;
+
+        if (elapsedMs < _minSampleGapMs && movement < _minMoveDistance) {
+          return;
+        }
       }
 
-      // ── Add Point ───────────────────────────────────────────────────────────
       final scaledX = (smoothed['x']! * _pointResolution).roundToDouble();
       final scaledY = (smoothed['y']! * _pointResolution).roundToDouble();
 
-      final now = DateTime.now().millisecondsSinceEpoch;
       final duration = _lastTimestampMs == null
-          ? 34
-          : (now - _lastTimestampMs!).clamp(10, 500);
+          ? _minSampleGapMs
+          : (now - _lastTimestampMs!).clamp(16, 500);
       _lastTimestampMs = now;
 
       setState(() {
@@ -206,11 +205,50 @@ class _ScannerScreenState extends State<ScannerScreen> {
       return;
     }
 
+    if (!_hasEnoughSpatialSpread()) {
+      CustomSnackBar.show(
+        context,
+        message:
+            'مسار العين متجمع في مساحة صغيرة. أعد الفحص مع تثبيت الوجه داخل الإطار وتحسين الإضاءة.',
+        state: SnackBarState.warning,
+      );
+      return;
+    }
+
     context.read<EyeScanCubit>().analyzeEyeScan(
       childId: 1,
       notes: '',
       scanPath: List.unmodifiable(_gazePoints),
     );
+  }
+
+  bool _hasEnoughSpatialSpread() {
+    if (_gazePoints.length < 2) return false;
+
+    var minX = _gazePoints.first.x;
+    var maxX = _gazePoints.first.x;
+    var minY = _gazePoints.first.y;
+    var maxY = _gazePoints.first.y;
+
+    for (final point in _gazePoints.skip(1)) {
+      minX = math.min(minX, point.x);
+      maxX = math.max(maxX, point.x);
+      minY = math.min(minY, point.y);
+      maxY = math.max(maxY, point.y);
+    }
+
+    final spreadX = (maxX - minX) / _pointResolution;
+    final spreadY = (maxY - minY) / _pointResolution;
+    final dominantSpread = math.max(spreadX, spreadY);
+
+    return dominantSpread >= _minAxisSpread ||
+        (spreadX >= _minBalancedSpread && spreadY >= _minBalancedSpread);
+  }
+
+  Size? _previewContentSize() {
+    final previewSize = _camera?.value.previewSize;
+    if (previewSize == null) return null;
+    return Size(previewSize.height, previewSize.width);
   }
 
   void _showLoading() {
@@ -331,16 +369,25 @@ class _ScannerScreenState extends State<ScannerScreen> {
         icon = Icons.visibility_off;
       }
     } else {
-      text = 'اكتملت البيانات. جاهز للتحليل';
-      color = Colors.blueAccent;
-      icon = Icons.check_circle;
+      final hasEnoughPoints = _gazePoints.length >= _minPoints;
+      final hasEnoughSpread = _hasEnoughSpatialSpread();
+
+      if (hasEnoughPoints && hasEnoughSpread) {
+        text = 'اكتملت البيانات. جاهز للتحليل';
+        color = Colors.blueAccent;
+        icon = Icons.check_circle;
+      } else {
+        text = 'البيانات غير كافية. أعد الفحص';
+        color = Colors.orangeAccent;
+        icon = Icons.refresh;
+      }
     }
 
     return Container(
       margin: EdgeInsets.symmetric(horizontal: 20.w),
       padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 8.h),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(10.r),
       ),
       child: Row(
@@ -358,6 +405,8 @@ class _ScannerScreenState extends State<ScannerScreen> {
   }
 
   Widget _buildScanningArea() {
+    final previewContentSize = _previewContentSize();
+
     return Container(
       width: 340.w,
       height: 280.h,
@@ -367,7 +416,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
         border: Border.all(
           color: _isRecording && !_faceVisible
               ? Colors.redAccent
-              : Colors.blueAccent.withOpacity(0.6),
+              : Colors.blueAccent.withValues(alpha: 0.6),
           width: 3,
         ),
       ),
@@ -377,19 +426,39 @@ class _ScannerScreenState extends State<ScannerScreen> {
           fit: StackFit.expand,
           children: [
             if (_camera?.value.isInitialized == true)
-              CameraPreview(_camera!)
+              if (previewContentSize != null)
+                Center(
+                  child: FittedBox(
+                    fit: BoxFit.cover,
+                    child: SizedBox(
+                      width: previewContentSize.width,
+                      height: previewContentSize.height,
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          CameraPreview(_camera!),
+                          if (_isRecording || _recordingDone)
+                            IgnorePointer(
+                              child: CustomPaint(
+                                painter: GazePathPainter(
+                                  _gazePoints,
+                                  resolution: _pointResolution,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                )
+              else
+                CameraPreview(_camera!)
             else
               const Center(child: CircularProgressIndicator()),
 
-            if (_isRecording || _recordingDone)
-              CustomPaint(
-                painter: GazePathPainter(_gazePoints),
-                size: Size.infinite,
-              ),
-
             if (!_isRecording && !_recordingDone)
               Container(
-                color: Colors.black.withOpacity(0.4),
+                color: Colors.black.withValues(alpha: 0.4),
                 child: const Center(
                   child: Icon(
                     Icons.face_retouching_natural,
@@ -445,7 +514,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
       width: 100.w,
       padding: EdgeInsets.symmetric(vertical: 10.h),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
+        color: Colors.white.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(15.r),
         border: Border.all(color: Colors.white10),
       ),
@@ -472,15 +541,16 @@ class _ScannerScreenState extends State<ScannerScreen> {
 // ── Gaze Path Painter ─────────────────────────────────────────────────────────
 class GazePathPainter extends CustomPainter {
   final List<ScanPoint> points;
+  final double resolution;
 
-  GazePathPainter(this.points);
+  GazePathPainter(this.points, {required this.resolution});
 
   @override
   void paint(Canvas canvas, Size size) {
     if (points.isEmpty) return;
 
     final linePaint = Paint()
-      ..color = Colors.yellowAccent.withOpacity(0.75)
+      ..color = Colors.yellowAccent.withValues(alpha: 0.75)
       ..strokeWidth = 2.5
       ..strokeCap = StrokeCap.round;
 
@@ -489,15 +559,15 @@ class GazePathPainter extends CustomPainter {
     Offset? prev;
 
     for (final point in points) {
-      final px = (point.x / 1000) * size.width;
-      final py = (point.y / 1000) * size.height;
+      final px = (point.x / resolution) * size.width;
+      final py = (point.y / resolution) * size.height;
       final offset = Offset(px, py);
 
       if (prev != null) canvas.drawLine(prev, offset, linePaint);
 
       final radius = (3.0 + point.duration / 100).clamp(3.0, 11.0);
 
-      dotPaint.color = Colors.orangeAccent.withOpacity(0.7);
+      dotPaint.color = Colors.orangeAccent.withValues(alpha: 0.7);
       canvas.drawCircle(offset, radius, dotPaint);
 
       dotPaint.color = Colors.white;
