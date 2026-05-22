@@ -18,6 +18,8 @@ import 'package:soliel/features/onboarding/screens/onboarding_screen.dart';
 import 'package:soliel/features/onboarding/screens/select_role_screen.dart';
 import 'package:soliel/features/parent_layout/parent_layout.dart';
 import 'package:soliel/features/profile/ui/screens/profile_screen.dart';
+import 'package:soliel/features/settings/ui/screens/change_password_screen.dart';
+import 'package:soliel/features/settings/ui/screens/notifications_Screen.dart';
 import 'package:soliel/features/settings/ui/screens/settings_screen.dart';
 import 'package:soliel/features/splash/splash_screen.dart';
 import 'package:soliel/features/test/data/models/eye_scan_response.dart';
@@ -112,6 +114,12 @@ class AppRouter {
 
       case Routes.settingsScreen:
         return MaterialPageRoute(builder: (_) => const SettingsScreen());
+
+      case Routes.changePasswordScreen:
+        return MaterialPageRoute(builder: (_) => const ChangePasswordScreen());
+
+      case Routes.notificationsScreen:
+        return MaterialPageRoute(builder: (_) => const NotificationsScreen());
 
       default:
         return MaterialPageRoute(
