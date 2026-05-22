@@ -23,6 +23,8 @@ class ColorsManager {
   static const Color darkGrey = Color(0xFF8391A1);
   static const Color greyBorderColor = Color(0xFFE8ECF4);
   static const Color moreDarkGrey = Color(0xFF6A707C);
+  static const Color lightBlueBackground = Color(0xFFF2F6FB);
+  static const Color grey400 = Color(0xFF888888);
 
   // Status Colors
   static const Color red = Color(0xFFB30303);

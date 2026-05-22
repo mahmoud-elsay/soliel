@@ -21,4 +21,5 @@ class Routes {
   static const String resetPasswordDoneScreen = 'resetPasswordDoneScreen';
   static const String verifySignUpScreen = 'verifySignUpScreen';
   static const String startGameScreen = "startGameScreen";
+  static const String settingsScreen = "settingsScreen";
 }

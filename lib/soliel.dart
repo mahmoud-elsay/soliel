@@ -58,7 +58,7 @@ class Soliel extends StatelessWidget {
             );
           },
 
-          initialRoute: Routes.splashScreen,
+          initialRoute: Routes.homeScreen,
 
           onGenerateRoute: appRouter.generateRoute,
         );

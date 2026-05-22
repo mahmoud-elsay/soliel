@@ -320,6 +320,13 @@ class TextStyles {
     height: 1.0,
   );
 
+  static TextStyle font14RobotoGrey400Regular = GoogleFonts.roboto(
+    fontSize: 14.sp,
+    fontWeight: FontWeightHelper.regular,
+    color: ColorsManager.grey400,
+  );
+
+
   static TextStyle font18InterWhiteSemiBold = GoogleFonts.inter(
     fontSize: 18.13.sp,
     fontWeight: FontWeightHelper.semiBold,

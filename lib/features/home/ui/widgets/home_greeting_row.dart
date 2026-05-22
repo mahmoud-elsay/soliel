@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:soliel/core/helpers/extensions.dart';
+import 'package:soliel/core/routing/routes.dart';
 import 'package:soliel/core/theming/colors_manger.dart';
 import 'package:soliel/core/theming/styles.dart';
 
@@ -20,7 +22,7 @@ class HomeGreetingRow extends StatelessWidget {
               'assets/images/parent_avatar.png',
             ),
           ),
-          
+
           SizedBox(width: 12.w),
 
           // Greeting texts (Centered/Expanded)
@@ -44,13 +46,16 @@ class HomeGreetingRow extends StatelessWidget {
           SizedBox(width: 12.w),
 
           // Menu icon on the left (RTL end)
-          SvgPicture.asset(
-            'assets/svgs/menu_icon.svg',
-            width: 24.w,
-            height: 24.h,
-            colorFilter: const ColorFilter.mode(
-              ColorsManager.black,
-              BlendMode.srcIn,
+          GestureDetector(
+            onTap: () => {context.pushNamed(Routes.settingsScreen)},
+            child: SvgPicture.asset(
+              'assets/svgs/menu_icon.svg',
+              width: 24.w,
+              height: 24.h,
+              colorFilter: const ColorFilter.mode(
+                ColorsManager.black,
+                BlendMode.srcIn,
+              ),
             ),
           ),
         ],
