@@ -78,6 +78,73 @@ class _ApiService implements ApiService {
   }
 
   @override
+  Future<DoctorSignUpResponseBody> registerDoctor(
+    String firstName,
+    String lastName,
+    String email,
+    String password,
+    String clinicPhone,
+    String nationalId,
+    int experienceYears,
+    String city,
+    String street,
+    String building,
+    String education,
+    String workingHours,
+    File certificateImage,
+  ) async {
+    final _extra = <String, dynamic>{};
+    final queryParameters = <String, dynamic>{};
+    final _headers = <String, dynamic>{};
+    final _data = FormData();
+    _data.fields.add(MapEntry('FirstName', firstName));
+    _data.fields.add(MapEntry('LastName', lastName));
+    _data.fields.add(MapEntry('Email', email));
+    _data.fields.add(MapEntry('Password', password));
+    _data.fields.add(MapEntry('ClinicPhone', clinicPhone));
+    _data.fields.add(MapEntry('NationalId', nationalId));
+    _data.fields.add(MapEntry('ExperienceYears', experienceYears.toString()));
+    _data.fields.add(MapEntry('City', city));
+    _data.fields.add(MapEntry('Street', street));
+    _data.fields.add(MapEntry('Building', building));
+    _data.fields.add(MapEntry('Education', education));
+    _data.fields.add(MapEntry('WorkingHours', workingHours));
+    _data.files.add(
+      MapEntry(
+        'CertificateImage',
+        MultipartFile.fromFileSync(
+          certificateImage.path,
+          filename: certificateImage.path.split(Platform.pathSeparator).last,
+        ),
+      ),
+    );
+    final _options = _setStreamType<DoctorSignUpResponseBody>(
+      Options(
+            method: 'POST',
+            headers: _headers,
+            extra: _extra,
+            contentType: 'multipart/form-data',
+          )
+          .compose(
+            _dio.options,
+            'Account/register-doctor',
+            queryParameters: queryParameters,
+            data: _data,
+          )
+          .copyWith(baseUrl: _combineBaseUrls(_dio.options.baseUrl, baseUrl)),
+    );
+    final _result = await _dio.fetch<Map<String, dynamic>>(_options);
+    late DoctorSignUpResponseBody _value;
+    try {
+      _value = DoctorSignUpResponseBody.fromJson(_result.data!);
+    } on Object catch (e, s) {
+      errorLogger?.logError(e, s, _options);
+      rethrow;
+    }
+    return _value;
+  }
+
+  @override
   Future<EyeScanResponse> analyzeEyeScan(EyeScanRequest request) async {
     final _extra = <String, dynamic>{};
     final queryParameters = <String, dynamic>{};

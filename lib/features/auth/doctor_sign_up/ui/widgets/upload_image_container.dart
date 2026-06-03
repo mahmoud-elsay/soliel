@@ -80,7 +80,7 @@ class _UploadImageContainerState extends State<UploadImageContainer> {
                         child: Container(
                           padding: EdgeInsets.all(4.r),
                           decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.5),
+                            color: Colors.black.withValues(alpha: 0.5),
                             shape: BoxShape.circle,
                           ),
                           child: Icon(

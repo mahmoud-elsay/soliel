@@ -15,6 +15,33 @@ import 'package:soliel/features/test/logic/eye_scan_cubit/eye_scan_cubit.dart';
 import 'package:soliel/features/test/logic/eye_scan_cubit/eye_scan_state.dart';
 import 'package:soliel/features/test/ui/utils/detect_eye.dart';
 
+const List<Offset> _stimulusWaypoints = [
+  Offset(0.50, 0.50),
+  Offset(0.18, 0.22),
+  Offset(0.82, 0.22),
+  Offset(0.82, 0.78),
+  Offset(0.18, 0.78),
+  Offset(0.50, 0.50),
+  Offset(0.18, 0.50),
+  Offset(0.82, 0.50),
+  Offset(0.50, 0.22),
+  Offset(0.50, 0.78),
+  Offset(0.50, 0.50),
+];
+
+Offset _stimulusPointAt(double progress) {
+  final clampedProgress = progress.clamp(0.0, 1.0);
+  final scaledProgress = clampedProgress * (_stimulusWaypoints.length - 1);
+  final index = scaledProgress.floor().clamp(0, _stimulusWaypoints.length - 2);
+  final localProgress = Curves.easeInOut.transform(scaledProgress - index);
+
+  return Offset.lerp(
+    _stimulusWaypoints[index],
+    _stimulusWaypoints[index + 1],
+    localProgress,
+  )!;
+}
+
 class ScannerScreen extends StatefulWidget {
   const ScannerScreen({super.key});
 
@@ -22,7 +49,8 @@ class ScannerScreen extends StatefulWidget {
   State<ScannerScreen> createState() => _ScannerScreenState();
 }
 
-class _ScannerScreenState extends State<ScannerScreen> {
+class _ScannerScreenState extends State<ScannerScreen>
+    with SingleTickerProviderStateMixin {
   // ── Config ───────────────────────────────────────────────────────────────────
   static const int _sessionSeconds = 12;
   static const int _minPoints = 35;
@@ -30,20 +58,28 @@ class _ScannerScreenState extends State<ScannerScreen> {
   static const int _minSampleGapMs = 90;
   static const double _maxJumpDistance = 0.18;
   static const double _minMoveDistance = 0.001;
-  static const double _minAxisSpread = 0.11;
-  static const double _minBalancedSpread = 0.08;
+  static const double _targetAnalysisSpread = 0.35;
+  static const double _minAnalysisInputSpread = 0.01;
+  static const double _maxAnalysisScale = 2.5;
+  static const double _minResponseSpread = 0.04;
+  static const double _minTrackingQuality = 0.35;
 
   // ── Camera & Detectors ───────────────────────────────────────────────────────
   CameraController? _camera;
   final EyeDetector _eyeDetector = EyeDetector();
   final GazeSmoother _smoother = GazeSmoother();
+  final GazeSmoother _previewSmoother = GazeSmoother();
+  late final AnimationController _stimulusController;
 
   bool _isDetecting = false;
 
   // ── Recording State ─────────────────────────────────────────────────────────
   final List<ScanPoint> _gazePoints = [];
+  final List<ScanPoint> _previewPoints = [];
+  final List<Offset> _targetPoints = [];
   int _pointIndex = 0;
   int? _lastTimestampMs;
+  int? _recordingStartMs;
   bool _isRecording = false;
   bool _recordingDone = false;
   int _secondsLeft = _sessionSeconds;
@@ -55,6 +91,10 @@ class _ScannerScreenState extends State<ScannerScreen> {
   @override
   void initState() {
     super.initState();
+    _stimulusController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: _sessionSeconds),
+    );
     _initCamera();
   }
 
@@ -63,6 +103,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
     _timer?.cancel();
     _camera?.stopImageStream();
     _camera?.dispose();
+    _stimulusController.dispose();
     _eyeDetector.dispose();
     super.dispose();
   }
@@ -92,15 +133,20 @@ class _ScannerScreenState extends State<ScannerScreen> {
   void _startRecording() {
     setState(() {
       _gazePoints.clear();
+      _previewPoints.clear();
+      _targetPoints.clear();
       _pointIndex = 0;
       _lastTimestampMs = null;
+      _recordingStartMs = DateTime.now().millisecondsSinceEpoch;
       _smoother.reset();
+      _previewSmoother.reset();
       _isRecording = true;
       _recordingDone = false;
       _secondsLeft = _sessionSeconds;
       _faceVisible = false;
     });
 
+    _stimulusController.forward(from: 0);
     _timer = Timer.periodic(const Duration(seconds: 1), (t) {
       if (!mounted) {
         t.cancel();
@@ -119,6 +165,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
   void _stopRecording() {
     _timer?.cancel();
     _camera?.stopImageStream();
+    _stimulusController.stop();
     if (mounted) {
       setState(() {
         _isRecording = false;
@@ -147,6 +194,10 @@ class _ScannerScreenState extends State<ScannerScreen> {
       if (!_faceVisible) setState(() => _faceVisible = true);
 
       final smoothed = _smoother.addPoint(result['normX']!, result['normY']!);
+      final previewSmoothed = _previewSmoother.addPoint(
+        result['previewX']!,
+        result['previewY']!,
+      );
       final now = DateTime.now().millisecondsSinceEpoch;
 
       if (_gazePoints.isNotEmpty) {
@@ -172,6 +223,11 @@ class _ScannerScreenState extends State<ScannerScreen> {
 
       final scaledX = (smoothed['x']! * _pointResolution).roundToDouble();
       final scaledY = (smoothed['y']! * _pointResolution).roundToDouble();
+      final previewScaledX = (previewSmoothed['x']! * _pointResolution)
+          .roundToDouble();
+      final previewScaledY = (previewSmoothed['y']! * _pointResolution)
+          .roundToDouble();
+      final targetPoint = _stimulusPointAt(_recordingProgress(now));
 
       final duration = _lastTimestampMs == null
           ? _minSampleGapMs
@@ -179,14 +235,19 @@ class _ScannerScreenState extends State<ScannerScreen> {
       _lastTimestampMs = now;
 
       setState(() {
+        final pointIdx = _pointIndex++;
         _gazePoints.add(
+          ScanPoint(idx: pointIdx, x: scaledX, y: scaledY, duration: duration),
+        );
+        _previewPoints.add(
           ScanPoint(
-            idx: _pointIndex++,
-            x: scaledX,
-            y: scaledY,
+            idx: pointIdx,
+            x: previewScaledX,
+            y: previewScaledY,
             duration: duration,
           ),
         );
+        _targetPoints.add(targetPoint);
       });
     } finally {
       _isDetecting = false;
@@ -205,11 +266,12 @@ class _ScannerScreenState extends State<ScannerScreen> {
       return;
     }
 
-    if (!_hasEnoughSpatialSpread()) {
+    final trackingQuality = _trackingQuality();
+    if (trackingQuality < _minTrackingQuality) {
       CustomSnackBar.show(
         context,
         message:
-            'مسار العين متجمع في مساحة صغيرة. أعد الفحص مع تثبيت الوجه داخل الإطار وتحسين الإضاءة.',
+            'لم يتم تتبع النقطة بوضوح. أعد الفحص مع جعل الطفل يتبع النقطة الصفراء بعينيه.',
         state: SnackBarState.warning,
       );
       return;
@@ -218,31 +280,156 @@ class _ScannerScreenState extends State<ScannerScreen> {
     context.read<EyeScanCubit>().analyzeEyeScan(
       childId: 1,
       notes: '',
-      scanPath: List.unmodifiable(_gazePoints),
+      scanPath: List.unmodifiable(_normalizedScanPathForAnalysis()),
     );
   }
 
-  bool _hasEnoughSpatialSpread() {
-    if (_gazePoints.length < 2) return false;
+  List<ScanPoint> _normalizedScanPathForAnalysis() {
+    if (_gazePoints.isEmpty) return const [];
 
-    var minX = _gazePoints.first.x;
-    var maxX = _gazePoints.first.x;
-    var minY = _gazePoints.first.y;
-    var maxY = _gazePoints.first.y;
+    final responsePoints = _gazePoints
+        .map(
+          (point) =>
+              Offset(point.x / _pointResolution, point.y / _pointResolution),
+        )
+        .toList(growable: false);
+    final responseCenter = _centerOf(responsePoints);
+    final responseSpread = _dominantSpreadOf(responsePoints);
+    final targetSpread = _targetPoints.length == responsePoints.length
+        ? math.max(_dominantSpreadOf(_targetPoints), _targetAnalysisSpread)
+        : _targetAnalysisSpread;
+    final analysisScale = responseSpread >= targetSpread
+        ? 1.0
+        : (targetSpread / math.max(responseSpread, _minAnalysisInputSpread))
+              .clamp(1.0, _maxAnalysisScale);
+    final flipX =
+        _axisCorrelation(responsePoints, _targetPoints, (p) => p.dx) < -0.15
+        ? -1.0
+        : 1.0;
+    final flipY =
+        _axisCorrelation(responsePoints, _targetPoints, (p) => p.dy) < -0.15
+        ? -1.0
+        : 1.0;
 
-    for (final point in _gazePoints.skip(1)) {
-      minX = math.min(minX, point.x);
-      maxX = math.max(maxX, point.x);
-      minY = math.min(minY, point.y);
-      maxY = math.max(maxY, point.y);
+    return _gazePoints.indexed
+        .map((entry) {
+          final index = entry.$1;
+          final point = entry.$2;
+          final response = responsePoints[index];
+          final normalizedX =
+              ((response.dx - responseCenter.dx) * analysisScale * flipX + 0.5)
+                  .clamp(0.0, 1.0);
+          final normalizedY =
+              ((response.dy - responseCenter.dy) * analysisScale * flipY + 0.5)
+                  .clamp(0.0, 1.0);
+
+          return ScanPoint(
+            idx: point.idx,
+            x: (normalizedX * _pointResolution).roundToDouble(),
+            y: (normalizedY * _pointResolution).roundToDouble(),
+            duration: point.duration,
+          );
+        })
+        .toList(growable: false);
+  }
+
+  double _trackingQuality() {
+    if (_gazePoints.length < _minPoints ||
+        _targetPoints.length != _gazePoints.length) {
+      return 0.0;
     }
 
-    final spreadX = (maxX - minX) / _pointResolution;
-    final spreadY = (maxY - minY) / _pointResolution;
-    final dominantSpread = math.max(spreadX, spreadY);
+    final responsePoints = _gazePoints
+        .map(
+          (point) =>
+              Offset(point.x / _pointResolution, point.y / _pointResolution),
+        )
+        .toList(growable: false);
+    final responseSpread = _dominantSpreadOf(responsePoints);
+    if (responseSpread < _minResponseSpread) return 0.0;
 
-    return dominantSpread >= _minAxisSpread ||
-        (spreadX >= _minBalancedSpread && spreadY >= _minBalancedSpread);
+    final corrX = _axisCorrelation(
+      responsePoints,
+      _targetPoints,
+      (p) => p.dx,
+    ).abs();
+    final corrY = _axisCorrelation(
+      responsePoints,
+      _targetPoints,
+      (p) => p.dy,
+    ).abs();
+
+    return (corrX + corrY) / 2;
+  }
+
+  double _recordingProgress(int nowMs) {
+    final startMs = _recordingStartMs;
+    if (startMs == null) return _stimulusController.value;
+
+    final elapsedMs = nowMs - startMs;
+    final durationMs = _sessionSeconds * 1000;
+    return (elapsedMs / durationMs).clamp(0.0, 1.0);
+  }
+
+  Offset _centerOf(List<Offset> points) {
+    if (points.isEmpty) return const Offset(0.5, 0.5);
+
+    final sum = points.fold<Offset>(
+      Offset.zero,
+      (total, point) => total + point,
+    );
+    return sum / points.length.toDouble();
+  }
+
+  double _dominantSpreadOf(List<Offset> points) {
+    if (points.length < 2) return 0.0;
+
+    var minX = points.first.dx;
+    var maxX = points.first.dx;
+    var minY = points.first.dy;
+    var maxY = points.first.dy;
+
+    for (final point in points.skip(1)) {
+      minX = math.min(minX, point.dx);
+      maxX = math.max(maxX, point.dx);
+      minY = math.min(minY, point.dy);
+      maxY = math.max(maxY, point.dy);
+    }
+
+    return math.max(maxX - minX, maxY - minY);
+  }
+
+  double _axisCorrelation(
+    List<Offset> responsePoints,
+    List<Offset> targetPoints,
+    double Function(Offset point) axis,
+  ) {
+    final count = math.min(responsePoints.length, targetPoints.length);
+    if (count < 3) return 0.0;
+
+    final responseMean =
+        responsePoints.take(count).fold<double>(0, (sum, p) => sum + axis(p)) /
+        count;
+    final targetMean =
+        targetPoints.take(count).fold<double>(0, (sum, p) => sum + axis(p)) /
+        count;
+
+    var covariance = 0.0;
+    var responseVariance = 0.0;
+    var targetVariance = 0.0;
+
+    for (var index = 0; index < count; index++) {
+      final responseDelta = axis(responsePoints[index]) - responseMean;
+      final targetDelta = axis(targetPoints[index]) - targetMean;
+      covariance += responseDelta * targetDelta;
+      responseVariance += responseDelta * responseDelta;
+      targetVariance += targetDelta * targetDelta;
+    }
+
+    final denominator = math.sqrt(responseVariance * targetVariance);
+    if (denominator == 0) return 0.0;
+
+    return covariance / denominator;
   }
 
   Size? _previewContentSize() {
@@ -360,22 +547,26 @@ class _ScannerScreenState extends State<ScannerScreen> {
       icon = Icons.info_outline;
     } else if (_isRecording) {
       if (_faceVisible) {
-        text = 'يتم الالتقاط... حافظ على ثبات الطفل';
+        text = 'يتم الالتقاط... اتبع النقطة الصفراء';
         color = Colors.greenAccent;
         icon = Icons.visibility;
       } else {
-        text = 'وجه الطفل غير واضح! أعد التصويب';
+        text = 'وجه الطفل غير واضح! ضع الوجه داخل الإطار';
         color = Colors.redAccent;
         icon = Icons.visibility_off;
       }
     } else {
       final hasEnoughPoints = _gazePoints.length >= _minPoints;
-      final hasEnoughSpread = _hasEnoughSpatialSpread();
+      final hasGoodTracking = _trackingQuality() >= _minTrackingQuality;
 
-      if (hasEnoughPoints && hasEnoughSpread) {
+      if (hasEnoughPoints && hasGoodTracking) {
         text = 'اكتملت البيانات. جاهز للتحليل';
         color = Colors.blueAccent;
         icon = Icons.check_circle;
+      } else if (hasEnoughPoints) {
+        text = 'التتبع غير واضح. أعد الفحص';
+        color = Colors.orangeAccent;
+        icon = Icons.track_changes;
       } else {
         text = 'البيانات غير كافية. أعد الفحص';
         color = Colors.orangeAccent;
@@ -437,11 +628,22 @@ class _ScannerScreenState extends State<ScannerScreen> {
                         fit: StackFit.expand,
                         children: [
                           CameraPreview(_camera!),
+                          if (_isRecording)
+                            IgnorePointer(
+                              child: AnimatedBuilder(
+                                animation: _stimulusController,
+                                builder: (context, _) => CustomPaint(
+                                  painter: StimulusTargetPainter(
+                                    progress: _stimulusController.value,
+                                  ),
+                                ),
+                              ),
+                            ),
                           if (_isRecording || _recordingDone)
                             IgnorePointer(
                               child: CustomPaint(
                                 painter: GazePathPainter(
-                                  _gazePoints,
+                                  _previewPoints,
                                   resolution: _pointResolution,
                                 ),
                               ),
@@ -536,6 +738,38 @@ class _ScannerScreenState extends State<ScannerScreen> {
       ),
     );
   }
+}
+
+// ── Stimulus Target Painter ───────────────────────────────────────────────────
+class StimulusTargetPainter extends CustomPainter {
+  final double progress;
+
+  StimulusTargetPainter({required this.progress});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final target = _stimulusPointAt(progress);
+    final center = Offset(target.dx * size.width, target.dy * size.height);
+
+    final outerPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3
+      ..color = Colors.yellowAccent.withValues(alpha: 0.9);
+    final innerPaint = Paint()
+      ..style = PaintingStyle.fill
+      ..color = Colors.orangeAccent;
+    final glowPaint = Paint()
+      ..style = PaintingStyle.fill
+      ..color = Colors.yellowAccent.withValues(alpha: 0.18);
+
+    canvas.drawCircle(center, 22, glowPaint);
+    canvas.drawCircle(center, 13, outerPaint);
+    canvas.drawCircle(center, 5, innerPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant StimulusTargetPainter oldDelegate) =>
+      oldDelegate.progress != progress;
 }
 
 // ── Gaze Path Painter ─────────────────────────────────────────────────────────

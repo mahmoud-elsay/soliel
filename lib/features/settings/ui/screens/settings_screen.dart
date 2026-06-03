@@ -80,7 +80,7 @@ class SettingsScreen extends StatelessWidget {
       {
         'title': 'سياسه الخصوصيه وشروط الاحكام',
         'icon': 'assets/svgs/password_icon .svg',
-        'route': null,
+        'route': Routes.privacyScreen,
       },
       {
         'title': 'اعدادات واشعارات',

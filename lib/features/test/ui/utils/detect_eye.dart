@@ -7,6 +7,9 @@ class EyeDetector {
   static const double _maxYaw = 22;
   static const double _maxPitch = 18;
   static const double _minEyeOpenProbability = 0.5;
+  static const double _neutralEyeYInFace = 0.36;
+  static const double _eyeHorizontalRange = 0.22;
+  static const double _eyeVerticalRange = 0.18;
 
   final FaceDetector _faceDetector;
 
@@ -42,18 +45,26 @@ class EyeDetector {
         face.contours[FaceContourType.rightEye],
       );
 
-      if (leftEyeCenter == null && rightEyeCenter == null) return null;
+      if (leftEyeCenter == null || rightEyeCenter == null) return null;
 
       final eyeCenter = _resolveEyeCenter(leftEyeCenter, rightEyeCenter);
 
-      final norm = _normalizeCoordinates(
+      final norm = _normalizeGazeProxy(eyeCenter, face, camera);
+      if (norm == null) return null;
+
+      final previewNorm = _normalizePreviewCoordinates(
         eyeCenter.dx,
         eyeCenter.dy,
         image,
         camera,
       );
 
-      return {'normX': norm['x']!, 'normY': norm['y']!};
+      return {
+        'normX': norm['x']!,
+        'normY': norm['y']!,
+        'previewX': previewNorm['x']!,
+        'previewY': previewNorm['y']!,
+      };
     } catch (e) {
       return null;
     }
@@ -108,7 +119,42 @@ class EyeDetector {
     return leftEyeCenter ?? rightEyeCenter!;
   }
 
-  Map<String, double> _normalizeCoordinates(
+  Map<String, double>? _normalizeGazeProxy(
+    Offset eyeCenter,
+    Face face,
+    CameraDescription camera,
+  ) {
+    final box = face.boundingBox;
+    if (box.width <= 0 || box.height <= 0) return null;
+
+    final eyeXInFace = (eyeCenter.dx - box.left) / box.width;
+    final eyeYInFace = (eyeCenter.dy - box.top) / box.height;
+
+    var normX = 0.5 + ((eyeXInFace - 0.5) / _eyeHorizontalRange);
+    var normY = 0.5 + ((eyeYInFace - _neutralEyeYInFace) / _eyeVerticalRange);
+
+    final yaw = (face.headEulerAngleY ?? 0.0).clamp(-_maxYaw, _maxYaw);
+    final pitch = (face.headEulerAngleX ?? 0.0).clamp(-_maxPitch, _maxPitch);
+
+    final poseX = 0.5 - (yaw / (_maxYaw * 2));
+    final poseY = 0.5 + (pitch / (_maxPitch * 2));
+
+    normX = _blend(normX, poseX, 0.45);
+    normY = _blend(normY, poseY, 0.45);
+
+    if (camera.lensDirection == CameraLensDirection.front) {
+      normX = 1.0 - normX;
+    }
+
+    return {'x': _clamp01(normX), 'y': _clamp01(normY)};
+  }
+
+  double _blend(double value, double target, double targetWeight) =>
+      value * (1.0 - targetWeight) + target * targetWeight;
+
+  double _clamp01(double value) => value.clamp(0.0, 1.0);
+
+  Map<String, double> _normalizePreviewCoordinates(
     double rawX,
     double rawY,
     CameraImage image,
@@ -118,7 +164,8 @@ class EyeDetector {
     final bufH = image.height.toDouble();
     final sensorAngle = camera.sensorOrientation;
 
-    double normX, normY;
+    double normX;
+    double normY;
 
     switch (sensorAngle) {
       case 90:
@@ -138,10 +185,11 @@ class EyeDetector {
         normY = rawY / bufH;
     }
 
-    normX = (1.0 - normX).clamp(0.0, 1.0);
-    normY = normY.clamp(0.0, 1.0);
+    if (camera.lensDirection == CameraLensDirection.front) {
+      normX = 1.0 - normX;
+    }
 
-    return {'x': normX, 'y': normY};
+    return {'x': _clamp01(normX), 'y': _clamp01(normY)};
   }
 
   InputImage? _toInputImage(CameraImage image, CameraDescription camera) {

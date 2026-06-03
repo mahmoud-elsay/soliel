@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:soliel/core/di/dependency_injection.dart';
 import 'package:soliel/core/routing/routes.dart';
+import 'package:soliel/features/auth/doctor_sign_up/logic/doctor_sign_up_cubit/doctor_sign_up_cubit.dart';
 import 'package:soliel/features/auth/doctor_sign_up/ui/doctor_sign_up_screen.dart';
 import 'package:soliel/features/auth/login/logic/login_cubit/login_cubit.dart';
 import 'package:soliel/features/auth/login/ui/screens/login_screen.dart';
@@ -20,6 +21,7 @@ import 'package:soliel/features/parent_layout/parent_layout.dart';
 import 'package:soliel/features/profile/ui/screens/profile_screen.dart';
 import 'package:soliel/features/settings/ui/screens/change_password_screen.dart';
 import 'package:soliel/features/settings/ui/screens/notifications_Screen.dart';
+import 'package:soliel/features/settings/ui/screens/privacy_screen.dart';
 import 'package:soliel/features/settings/ui/screens/settings_screen.dart';
 import 'package:soliel/features/splash/splash_screen.dart';
 import 'package:soliel/features/test/data/models/eye_scan_response.dart';
@@ -51,7 +53,12 @@ class AppRouter {
         );
 
       case Routes.doctorSignUpScreen:
-        return MaterialPageRoute(builder: (_) => const DoctorSignUpScreen());
+        return MaterialPageRoute(
+          builder: (_) => BlocProvider<DoctorSignUpCubit>(
+            create: (_) => getIt<DoctorSignUpCubit>(),
+            child: const DoctorSignUpScreen(),
+          ),
+        );
 
       case Routes.parentSignUpScreen:
         return MaterialPageRoute(
@@ -120,6 +127,9 @@ class AppRouter {
 
       case Routes.notificationsScreen:
         return MaterialPageRoute(builder: (_) => const NotificationsScreen());
+
+      case Routes.privacyScreen:
+        return MaterialPageRoute(builder: (_) => const PrivacyScreen());
 
       default:
         return MaterialPageRoute(

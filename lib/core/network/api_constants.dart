@@ -3,6 +3,7 @@ class ApiConstants {
 
   static const String login = 'Account/login';
   static const String registerParent = 'Account/register-parent';
+  static const String registerDoctor = 'Account/register-doctor';
   static const String eyeScanAnalyze = 'EyeScan/analyze';
 }
 

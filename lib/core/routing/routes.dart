@@ -24,4 +24,5 @@ class Routes {
   static const String settingsScreen = "settingsScreen";
   static const String notificationsScreen = "notificationsScreen";
   static const String changePasswordScreen = "changePasswordScreen";
+  static const String privacyScreen = "privacyScreen";
 }
