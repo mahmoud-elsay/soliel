@@ -334,4 +334,16 @@ class TextStyles {
     height: 1.0,
     letterSpacing: -18.13 * 0.04,
   );
+
+  static TextStyle font16BlackSemiBold = GoogleFonts.poppins(
+    fontSize: 16.sp,
+    fontWeight: FontWeightHelper.semiBold,
+    color: ColorsManager.black,
+  );
+
+  static TextStyle font16GradientSemiBold = GoogleFonts.poppins(
+    fontSize: 16.sp,
+    fontWeight: FontWeightHelper.semiBold,
+    color: Colors.white,
+  );
 }

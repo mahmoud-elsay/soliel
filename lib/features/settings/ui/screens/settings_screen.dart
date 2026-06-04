@@ -65,7 +65,7 @@ class SettingsScreen extends StatelessWidget {
       {
         'title': 'الملف الشخصي',
         'icon': 'assets/svgs/profile_setting_icon.svg',
-        'route': Routes.profileScreen
+        'route': Routes.profileScreen,
       },
       {
         'title': 'تغيير كلمه المرور',
@@ -75,7 +75,7 @@ class SettingsScreen extends StatelessWidget {
       {
         'title': 'اداره الطفل',
         'icon': 'assets/svgs/manage_baby_icon.svg',
-        'route': null
+        'route': null,
       },
       {
         'title': 'سياسه الخصوصيه وشروط الاحكام',
@@ -90,9 +90,13 @@ class SettingsScreen extends StatelessWidget {
       {
         'title': 'تواصل معانا',
         'icon': 'assets/svgs/chat_icon.svg',
-        'route': null
+        'route': null,
       },
-      {'title': 'عن التطبيق', 'icon': 'assets/svgs/about_app.svg', 'route': null},
+      {
+        'title': 'عن التطبيق',
+        'icon': 'assets/svgs/about_app.svg',
+        'route': null,
+      },
     ];
 
     return Column(
@@ -113,7 +117,11 @@ class SettingsScreen extends StatelessWidget {
   }
 
   Widget _buildSettingsItem(
-      BuildContext context, String title, String iconPath, String? route) {
+    BuildContext context,
+    String title,
+    String iconPath,
+    String? route,
+  ) {
     return GestureDetector(
       onTap: () {
         if (route != null) {
@@ -132,11 +140,7 @@ class SettingsScreen extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Icon(
-              Icons.arrow_back_ios,
-              size: 16,
-              color: ColorsManager.primaryGradientStart,
-            ),
+            const Icon(Icons.arrow_back_ios, size: 16),
             Row(
               children: [
                 Text(

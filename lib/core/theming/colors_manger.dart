@@ -30,6 +30,11 @@ class ColorsManager {
   static const Color red = Color(0xFFB30303);
   static const Color green = Color(0xFF00B060);
 
+  // Profile Colors
+  static const Color mainPurple = Color(0xFF8F54D6);
+  static const Color lightCream = Color(0xFFFFFAF6);
+  static const Color coralRed = Color(0xFFFF4C5E);
+
   // Primary Gradient
   static const LinearGradient primaryGradient = LinearGradient(
     begin: Alignment.topCenter,

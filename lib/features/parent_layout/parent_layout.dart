@@ -6,6 +6,7 @@ import 'package:soliel/core/theming/colors_manger.dart';
 import 'package:soliel/features/doctor_profile/ui/screens/doctor_profile_screen.dart';
 import 'package:soliel/features/home/ui/screens/home_screen.dart';
 import 'package:soliel/features/games/ui/screens/games_screen.dart';
+import 'package:soliel/features/profile/ui/screens/profile_screen.dart';
 import 'package:soliel/features/test/ui/screens/test_screen.dart';
 
 class ParentLayout extends StatefulWidget {
@@ -24,7 +25,7 @@ class _ParentLayoutState extends State<ParentLayout> {
     const HomeScreen(),
     const GamesScreen(),
     const TestScreen(),
-    const DoctorProfileScreen(),
+    const ProfileScreen(),
   ];
 
   void onItemTapped(int index) {

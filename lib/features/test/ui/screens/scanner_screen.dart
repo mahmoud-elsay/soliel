@@ -56,13 +56,12 @@ class _ScannerScreenState extends State<ScannerScreen>
   static const int _minPoints = 35;
   static const double _pointResolution = 1000.0;
   static const int _minSampleGapMs = 90;
-  static const double _maxJumpDistance = 0.18;
-  static const double _minMoveDistance = 0.001;
-  static const double _targetAnalysisSpread = 0.35;
-  static const double _minAnalysisInputSpread = 0.01;
-  static const double _maxAnalysisScale = 2.5;
-  static const double _minResponseSpread = 0.04;
-  static const double _minTrackingQuality = 0.35;
+  static const double _maxJumpDistance = 0.30;
+  static const double _minMoveDistance = 0.0005;
+  static const double _minFrameQuality = 0.45;
+  static const double _minResponseSpread = 0.02;
+  static const double _minTrackingQuality = 0.50;
+  static const int _warmupMs = 1500;
 
   // ── Camera & Detectors ───────────────────────────────────────────────────────
   CameraController? _camera;
@@ -77,6 +76,7 @@ class _ScannerScreenState extends State<ScannerScreen>
   final List<ScanPoint> _gazePoints = [];
   final List<ScanPoint> _previewPoints = [];
   final List<Offset> _targetPoints = [];
+  final List<double> _frameQualitySamples = [];
   int _pointIndex = 0;
   int? _lastTimestampMs;
   int? _recordingStartMs;
@@ -84,6 +84,7 @@ class _ScannerScreenState extends State<ScannerScreen>
   bool _recordingDone = false;
   int _secondsLeft = _sessionSeconds;
   Timer? _timer;
+  int _retryCount = 0;
 
   bool _faceVisible = false;
   bool _loadingVisible = false;
@@ -135,6 +136,7 @@ class _ScannerScreenState extends State<ScannerScreen>
       _gazePoints.clear();
       _previewPoints.clear();
       _targetPoints.clear();
+      _frameQualitySamples.clear();
       _pointIndex = 0;
       _lastTimestampMs = null;
       _recordingStartMs = DateTime.now().millisecondsSinceEpoch;
@@ -160,6 +162,11 @@ class _ScannerScreenState extends State<ScannerScreen>
     });
 
     _camera!.startImageStream(_onFrame);
+  }
+
+  void _retryRecording() {
+    _retryCount++;
+    _startRecording();
   }
 
   void _stopRecording() {
@@ -191,14 +198,31 @@ class _ScannerScreenState extends State<ScannerScreen>
         return;
       }
 
+      final frameQuality = result['quality'] ?? 0.0;
+      if (frameQuality < _minFrameQuality) {
+        // Still mark face visible if quality is above a minimal threshold
+        // so the child doesn't get confused by face-lost warnings
+        if (frameQuality > 0.25) {
+          if (!_faceVisible) setState(() => _faceVisible = true);
+        } else {
+          if (_faceVisible) setState(() => _faceVisible = false);
+        }
+        return;
+      }
+
       if (!_faceVisible) setState(() => _faceVisible = true);
+
+      final now = DateTime.now().millisecondsSinceEpoch;
+
+      // Discard warm-up period — early frames are noisy
+      final elapsedSinceStart = now - (_recordingStartMs ?? now);
+      if (elapsedSinceStart < _warmupMs) return;
 
       final smoothed = _smoother.addPoint(result['normX']!, result['normY']!);
       final previewSmoothed = _previewSmoother.addPoint(
         result['previewX']!,
         result['previewY']!,
       );
-      final now = DateTime.now().millisecondsSinceEpoch;
 
       if (_gazePoints.isNotEmpty) {
         final last = _gazePoints.last;
@@ -248,6 +272,7 @@ class _ScannerScreenState extends State<ScannerScreen>
           ),
         );
         _targetPoints.add(targetPoint);
+        _frameQualitySamples.add(frameQuality);
       });
     } finally {
       _isDetecting = false;
@@ -260,7 +285,7 @@ class _ScannerScreenState extends State<ScannerScreen>
       CustomSnackBar.show(
         context,
         message:
-            'تم التقاط ${_gazePoints.length} نقطة فقط. نحتاج $_minPoints على الأقل.',
+            'تم التقاط ${_gazePoints.length} نقطة فقط. نحتاج $_minPoints على الأقل.\nتأكد من إضاءة جيدة ووجه الطفل واضح.',
         state: SnackBarState.warning,
       );
       return;
@@ -268,10 +293,15 @@ class _ScannerScreenState extends State<ScannerScreen>
 
     final trackingQuality = _trackingQuality();
     if (trackingQuality < _minTrackingQuality) {
+      final qualityPercent = (trackingQuality * 100).round();
+      final tip = _retryCount == 0
+          ? 'تأكد من:\n• إضاءة جيدة على وجه الطفل\n• الطفل يتبع النقطة الصفراء بعينيه\n• المسافة مناسبة (30-50 سم)'
+          : _retryCount == 1
+              ? 'حاول:\n• تقليل الإضاءة الخلفية\n• إمساك الهاتف بثبات\n• جعل الطفل ينظر للشاشة مباشرة'
+              : 'نصيحة: ضع الهاتف على سطح ثابت واجعل الطفل ينظر للشاشة من مسافة ذراع.';
       CustomSnackBar.show(
         context,
-        message:
-            'لم يتم تتبع النقطة بوضوح. أعد الفحص مع جعل الطفل يتبع النقطة الصفراء بعينيه.',
+        message: 'جودة الفحص $qualityPercent%.\n$tip',
         state: SnackBarState.warning,
       );
       return;
@@ -280,56 +310,22 @@ class _ScannerScreenState extends State<ScannerScreen>
     context.read<EyeScanCubit>().analyzeEyeScan(
       childId: 1,
       notes: '',
-      scanPath: List.unmodifiable(_normalizedScanPathForAnalysis()),
+      scanPath: List.unmodifiable(_scanPathForAnalysis()),
     );
   }
 
-  List<ScanPoint> _normalizedScanPathForAnalysis() {
+  List<ScanPoint> _scanPathForAnalysis() {
     if (_gazePoints.isEmpty) return const [];
 
-    final responsePoints = _gazePoints
+    return _gazePoints
         .map(
-          (point) =>
-              Offset(point.x / _pointResolution, point.y / _pointResolution),
-        )
-        .toList(growable: false);
-    final responseCenter = _centerOf(responsePoints);
-    final responseSpread = _dominantSpreadOf(responsePoints);
-    final targetSpread = _targetPoints.length == responsePoints.length
-        ? math.max(_dominantSpreadOf(_targetPoints), _targetAnalysisSpread)
-        : _targetAnalysisSpread;
-    final analysisScale = responseSpread >= targetSpread
-        ? 1.0
-        : (targetSpread / math.max(responseSpread, _minAnalysisInputSpread))
-              .clamp(1.0, _maxAnalysisScale);
-    final flipX =
-        _axisCorrelation(responsePoints, _targetPoints, (p) => p.dx) < -0.15
-        ? -1.0
-        : 1.0;
-    final flipY =
-        _axisCorrelation(responsePoints, _targetPoints, (p) => p.dy) < -0.15
-        ? -1.0
-        : 1.0;
-
-    return _gazePoints.indexed
-        .map((entry) {
-          final index = entry.$1;
-          final point = entry.$2;
-          final response = responsePoints[index];
-          final normalizedX =
-              ((response.dx - responseCenter.dx) * analysisScale * flipX + 0.5)
-                  .clamp(0.0, 1.0);
-          final normalizedY =
-              ((response.dy - responseCenter.dy) * analysisScale * flipY + 0.5)
-                  .clamp(0.0, 1.0);
-
-          return ScanPoint(
+          (point) => ScanPoint(
             idx: point.idx,
-            x: (normalizedX * _pointResolution).roundToDouble(),
-            y: (normalizedY * _pointResolution).roundToDouble(),
+            x: point.x.clamp(0.0, _pointResolution).toDouble(),
+            y: point.y.clamp(0.0, _pointResolution).toDouble(),
             duration: point.duration,
-          );
-        })
+          ),
+        )
         .toList(growable: false);
   }
 
@@ -348,18 +344,43 @@ class _ScannerScreenState extends State<ScannerScreen>
     final responseSpread = _dominantSpreadOf(responsePoints);
     if (responseSpread < _minResponseSpread) return 0.0;
 
+    // Correlation — useful but unreliable on mobile, so soft-fail
     final corrX = _axisCorrelation(
       responsePoints,
       _targetPoints,
       (p) => p.dx,
-    ).abs();
+    );
     final corrY = _axisCorrelation(
       responsePoints,
       _targetPoints,
       (p) => p.dy,
-    ).abs();
+    );
+    // On mobile, correlation can be 0 or slightly negative due to noise.
+    // Use max(0, corr) instead of hard-failing.
+    final trackingScore = math.max(corrX, 0.0) * 0.5 + math.max(corrY, 0.0) * 0.5;
 
-    return (corrX + corrY) / 2;
+    final frameQualityScore = _averageOf(_frameQualitySamples);
+
+    // Spatial spread — most reliable indicator on mobile
+    final spreadScore = (responseSpread / 0.15).clamp(0.0, 1.0).toDouble();
+
+    // Point density — enough samples means face was tracked well
+    final sampleScore = (_gazePoints.length / (_minPoints * 2.0))
+        .clamp(0.0, 1.0)
+        .toDouble();
+
+    // Total duration covered
+    final totalDurationMs = _gazePoints.fold<int>(0, (sum, p) => sum + p.duration);
+    final durationCoverageScore = (totalDurationMs / ((_sessionSeconds - 2) * 1000))
+        .clamp(0.0, 1.0)
+        .toDouble();
+
+    // Mobile-tuned weights: spread and density matter most
+    return spreadScore * 0.30 +
+        sampleScore * 0.25 +
+        frameQualityScore * 0.20 +
+        trackingScore * 0.15 +
+        durationCoverageScore * 0.10;
   }
 
   double _recordingProgress(int nowMs) {
@@ -369,16 +390,6 @@ class _ScannerScreenState extends State<ScannerScreen>
     final elapsedMs = nowMs - startMs;
     final durationMs = _sessionSeconds * 1000;
     return (elapsedMs / durationMs).clamp(0.0, 1.0);
-  }
-
-  Offset _centerOf(List<Offset> points) {
-    if (points.isEmpty) return const Offset(0.5, 0.5);
-
-    final sum = points.fold<Offset>(
-      Offset.zero,
-      (total, point) => total + point,
-    );
-    return sum / points.length.toDouble();
   }
 
   double _dominantSpreadOf(List<Offset> points) {
@@ -430,6 +441,11 @@ class _ScannerScreenState extends State<ScannerScreen>
     if (denominator == 0) return 0.0;
 
     return covariance / denominator;
+  }
+
+  double _averageOf(List<double> values) {
+    if (values.isEmpty) return 0.0;
+    return values.fold<double>(0, (sum, value) => sum + value) / values.length;
   }
 
   Size? _previewContentSize() {
@@ -523,6 +539,13 @@ class _ScannerScreenState extends State<ScannerScreen>
                         '${_secondsLeft}s',
                         Colors.blueAccent,
                       ),
+                      _buildMiniStat(
+                        'الجودة',
+                        '${(_trackingQuality() * 100).round()}%',
+                        _trackingQuality() >= _minTrackingQuality
+                            ? Colors.greenAccent
+                            : Colors.orangeAccent,
+                      ),
                     ],
                   ),
                 const Spacer(),
@@ -557,14 +580,19 @@ class _ScannerScreenState extends State<ScannerScreen>
       }
     } else {
       final hasEnoughPoints = _gazePoints.length >= _minPoints;
-      final hasGoodTracking = _trackingQuality() >= _minTrackingQuality;
+      final quality = _trackingQuality();
+      final hasGoodTracking = quality >= _minTrackingQuality;
 
       if (hasEnoughPoints && hasGoodTracking) {
-        text = 'اكتملت البيانات. جاهز للتحليل';
-        color = Colors.blueAccent;
+        text = 'اكتملت البيانات. جاهز للتحليل ✓';
+        color = Colors.greenAccent;
         icon = Icons.check_circle;
+      } else if (hasEnoughPoints && quality >= _minTrackingQuality * 0.6) {
+        text = 'جودة مقبولة. يمكن الإرسال أو إعادة الفحص';
+        color = Colors.blueAccent;
+        icon = Icons.check_circle_outline;
       } else if (hasEnoughPoints) {
-        text = 'التتبع غير واضح. أعد الفحص';
+        text = 'التتبع غير واضح. أعد الفحص مع إضاءة أفضل';
         color = Colors.orangeAccent;
         icon = Icons.track_changes;
       } else {
@@ -676,38 +704,66 @@ class _ScannerScreenState extends State<ScannerScreen>
   }
 
   Widget _buildPrimaryButton(bool loading) {
-    VoidCallback? onPressed;
-    String text;
-    Color color = Colors.blueAccent;
-
     if (loading) {
-      onPressed = null;
-      text = 'جاري المعالجة...';
-    } else if (_recordingDone) {
-      onPressed = _submit;
-      text = 'إرسال للتحليل';
-      color = Colors.green;
-    } else if (_isRecording) {
-      onPressed = null;
-      text = 'جاري التسجيل...';
-      color = Colors.grey;
-    } else {
-      onPressed = _startRecording;
-      text = 'ابدأ الفحص';
+      return ElevatedButton(
+        onPressed: null,
+        style: _buttonStyle(Colors.blueAccent),
+        child: Text('جاري المعالجة...', style: TextStyles.font16WhiteSemiBold),
+      );
+    }
+
+    if (_isRecording) {
+      return ElevatedButton(
+        onPressed: null,
+        style: _buttonStyle(Colors.grey),
+        child: Text('جاري التسجيل...', style: TextStyles.font16WhiteSemiBold),
+      );
+    }
+
+    if (_recordingDone) {
+      final quality = _trackingQuality();
+      final canSubmit = _gazePoints.length >= _minPoints && quality >= _minTrackingQuality;
+      final canRetry = !canSubmit || quality < _minTrackingQuality * 0.8;
+
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (canSubmit)
+            ElevatedButton(
+              onPressed: _submit,
+              style: _buttonStyle(Colors.green),
+              child: Text('إرسال للتحليل', style: TextStyles.font16WhiteSemiBold),
+            ),
+          if (canSubmit && canRetry) SizedBox(height: 10.h),
+          if (canRetry)
+            ElevatedButton(
+              onPressed: _retryRecording,
+              style: _buttonStyle(Colors.orangeAccent),
+              child: Text(
+                _retryCount > 0 ? 'إعادة الفحص (${_retryCount + 1})' : 'إعادة الفحص',
+                style: TextStyles.font16WhiteSemiBold,
+              ),
+            ),
+        ],
+      );
     }
 
     return ElevatedButton(
-      onPressed: onPressed,
-      style: ElevatedButton.styleFrom(
-        backgroundColor: color,
-        foregroundColor: Colors.white,
-        padding: EdgeInsets.symmetric(horizontal: 60.w, vertical: 15.h),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(30.r),
-        ),
-        elevation: 5,
+      onPressed: _startRecording,
+      style: _buttonStyle(Colors.blueAccent),
+      child: Text('ابدأ الفحص', style: TextStyles.font16WhiteSemiBold),
+    );
+  }
+
+  ButtonStyle _buttonStyle(Color color) {
+    return ElevatedButton.styleFrom(
+      backgroundColor: color,
+      foregroundColor: Colors.white,
+      padding: EdgeInsets.symmetric(horizontal: 60.w, vertical: 15.h),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(30.r),
       ),
-      child: Text(text, style: TextStyles.font16WhiteSemiBold),
+      elevation: 5,
     );
   }
 
