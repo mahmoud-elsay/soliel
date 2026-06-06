@@ -177,10 +177,7 @@ class EyeDetector {
     // Map ±_pitchRangeDeg to [0, 1] (inverted: up = lower Y on screen)
     final gazeY = 0.5 - (pitch / _pitchRangeDeg) * 0.5;
 
-    return {
-      'x': gazeX.clamp(0.0, 1.0),
-      'y': gazeY.clamp(0.0, 1.0),
-    };
+    return {'x': gazeX.clamp(0.0, 1.0), 'y': gazeY.clamp(0.0, 1.0)};
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -219,10 +216,7 @@ class EyeDetector {
     final gazeX = 0.5 + (irisRatioX - 0.5) * _irisHorizontalGain;
     final gazeY = 0.5 + (irisRatioY - 0.5) * _irisVerticalGain;
 
-    return {
-      'x': gazeX.clamp(0.0, 1.0),
-      'y': gazeY.clamp(0.0, 1.0),
-    };
+    return {'x': gazeX.clamp(0.0, 1.0), 'y': gazeY.clamp(0.0, 1.0)};
   }
 
   /// Computes the iris position ratio within a single eye's aperture.
@@ -297,10 +291,7 @@ class EyeDetector {
     final vertAsymmetry = (leftRatio['y']! + rightRatio['y']!) / 2;
     final gazeY = 0.5 + (vertAsymmetry - 0.5) * 1.5;
 
-    return {
-      'x': gazeX.clamp(0.0, 1.0),
-      'y': gazeY.clamp(0.0, 1.0),
-    };
+    return {'x': gazeX.clamp(0.0, 1.0), 'y': gazeY.clamp(0.0, 1.0)};
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -320,7 +311,8 @@ class EyeDetector {
     // 2. Eye visibility
     final leftOpen = face.leftEyeOpenProbability ?? 0.5;
     final rightOpen = face.rightEyeOpenProbability ?? 0.5;
-    if (leftOpen < _minEyeOpenProbability && rightOpen < _minEyeOpenProbability) {
+    if (leftOpen < _minEyeOpenProbability &&
+        rightOpen < _minEyeOpenProbability) {
       return 0.0;
     }
     final eyeOpenScore = ((leftOpen + rightOpen) / 2).clamp(0.0, 1.0);
@@ -340,8 +332,8 @@ class EyeDetector {
     final contourScore = (hasLeftEye && hasRightEye)
         ? 1.0
         : (hasLeftEye || hasRightEye)
-            ? 0.6
-            : 0.0;
+        ? 0.6
+        : 0.0;
 
     return (poseScore * 0.30 +
             eyeOpenScore * 0.30 +
@@ -468,9 +460,9 @@ class _OneEuroFilter {
     double minCutoff = 1.0,
     double beta = 0.007,
     double dCutoff = 1.0,
-  })  : _minCutoff = minCutoff,
-        _beta = beta,
-        _dCutoff = dCutoff;
+  }) : _minCutoff = minCutoff,
+       _beta = beta,
+       _dCutoff = dCutoff;
 
   double filter(double value, int timestampUs) {
     if (_prevTimestampUs == null || _prevValue == null) {
@@ -486,7 +478,8 @@ class _OneEuroFilter {
     // Derivative (speed of change)
     final derivative = (value - _prevValue!) / dt;
     final alphaD = _smoothingAlpha(dt, _dCutoff);
-    final smoothDerivative = alphaD * derivative + (1 - alphaD) * (_prevDerivative ?? 0);
+    final smoothDerivative =
+        alphaD * derivative + (1 - alphaD) * (_prevDerivative ?? 0);
 
     // Adaptive cutoff: increases with speed → less smoothing during fast moves
     final cutoff = _minCutoff + _beta * smoothDerivative.abs();
@@ -530,10 +523,7 @@ class GazeSmoother {
 
   Map<String, double> addPoint(double normX, double normY) {
     final now = DateTime.now().microsecondsSinceEpoch;
-    return {
-      'x': _filterX.filter(normX, now),
-      'y': _filterY.filter(normY, now),
-    };
+    return {'x': _filterX.filter(normX, now), 'y': _filterY.filter(normY, now)};
   }
 
   void reset() {

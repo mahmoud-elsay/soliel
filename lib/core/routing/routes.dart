@@ -26,4 +26,7 @@ class Routes {
   static const String changePasswordScreen = "changePasswordScreen";
   static const String privacyScreen = "privacyScreen";
   static const String childProfileScreen = "childProfileScreen";
+  static const String addNewChildScreen = "addNewChildScreen";
+  static const String editChildProfileScreen = "editChildProfileScreen";
+  static const String profileResultsScreen = "profileResultsScreen";
 }

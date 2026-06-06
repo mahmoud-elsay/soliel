@@ -114,7 +114,7 @@ class ChildProfileScreen extends StatelessWidget {
           label: 'النتائج السابقة',
           iconPath: 'assets/svgs/past_results.svg',
           onTap: () {
-            // Navigate to past results
+            context.pushNamed(Routes.profileResultsScreen);
           },
         ),
         _buildActionCard(
@@ -138,7 +138,7 @@ class ChildProfileScreen extends StatelessWidget {
           label: 'اضافه طفل جديد',
           iconPath: 'assets/svgs/add_new_baby.svg',
           onTap: () {
-            // Navigate to add new baby
+            context.pushNamed(Routes.addNewChildScreen);
           },
         ),
       ],
