@@ -21,8 +21,11 @@ import 'package:soliel/features/parent_layout/parent_layout.dart';
 import 'package:soliel/features/profile/ui/screens/add_new_child_screen.dart';
 import 'package:soliel/features/profile/ui/screens/child_profile_screen.dart';
 import 'package:soliel/features/profile/ui/screens/edit_child_profile_screen.dart';
+import 'package:soliel/features/profile/ui/screens/edit_parent_data.dart';
+import 'package:soliel/features/profile/ui/screens/parent_profile_screen.dart';
 import 'package:soliel/features/profile/ui/screens/profile_results_screen.dart';
 import 'package:soliel/features/profile/ui/screens/profile_screen.dart';
+import 'package:soliel/features/profile/ui/screens/reminder_screen.dart';
 import 'package:soliel/features/settings/ui/screens/change_password_screen.dart';
 import 'package:soliel/features/settings/ui/screens/notifications_Screen.dart';
 import 'package:soliel/features/settings/ui/screens/privacy_screen.dart';
@@ -147,6 +150,15 @@ class AppRouter {
 
       case Routes.profileResultsScreen:
         return MaterialPageRoute(builder: (_) => const ProfileResultsScreen());
+
+      case Routes.reminderScreen:
+        return MaterialPageRoute(builder: (_) => const ReminderScreen());
+
+      case Routes.parentProfileScreen:
+        return MaterialPageRoute(builder: (_) => const ParentProfileScreen());
+
+      case Routes.editParentDataScreen:
+        return MaterialPageRoute(builder: (_) => const EditParentDataScreen());
 
       default:
         return MaterialPageRoute(

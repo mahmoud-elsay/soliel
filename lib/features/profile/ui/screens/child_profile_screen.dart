@@ -122,7 +122,7 @@ class ChildProfileScreen extends StatelessWidget {
           label: 'التذكير بالتمارين',
           iconPath: 'assets/svgs/reminder.svg',
           onTap: () {
-            // Navigate to reminders
+            context.pushNamed(Routes.reminderScreen);
           },
         ),
         _buildActionCard(
@@ -130,7 +130,7 @@ class ChildProfileScreen extends StatelessWidget {
           label: 'تعديل بيانات الطفل',
           iconPath: 'assets/svgs/edit_baby.svg',
           onTap: () {
-            // Navigate to edit baby
+            context.pushNamed(Routes.editChildProfileScreen);
           },
         ),
         _buildActionCard(

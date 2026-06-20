@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:soliel/core/theming/colors_manger.dart';
-import 'package:soliel/features/doctor_profile/ui/screens/doctor_profile_screen.dart';
 import 'package:soliel/features/home/ui/screens/home_screen.dart';
 import 'package:soliel/features/games/ui/screens/games_screen.dart';
 import 'package:soliel/features/profile/ui/screens/profile_screen.dart';

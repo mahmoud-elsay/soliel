@@ -95,7 +95,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   Widget _buildNotificationItem(
-      String title, bool value, ValueChanged<bool> onChanged) {
+    String title,
+    bool value,
+    ValueChanged<bool> onChanged,
+  ) {
     return Container(
       width: 344.w,
       height: 48.h,
@@ -111,7 +114,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           Switch(
             value: value,
             onChanged: onChanged,
-            activeColor: ColorsManager.primaryGradientStart,
+            activeThumbColor: ColorsManager.primaryGradientStart,
           ),
           Text(
             title,

@@ -31,7 +31,7 @@ class ProfileScreen extends StatelessWidget {
                         backgroundColor: ColorsManager.mainPurple,
                         imagePath: 'assets/images/parent_profile_avatar.png',
                         onTap: () {
-                          // Handle parent profile tap
+                          context.pushNamed(Routes.parentProfileScreen);
                         },
                       ),
                       verticalSpace(30),

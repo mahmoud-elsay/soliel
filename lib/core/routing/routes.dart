@@ -29,4 +29,7 @@ class Routes {
   static const String addNewChildScreen = "addNewChildScreen";
   static const String editChildProfileScreen = "editChildProfileScreen";
   static const String profileResultsScreen = "profileResultsScreen";
+  static const String reminderScreen = "reminderScreen";
+  static const String parentProfileScreen = "parentProfileScreen";
+  static const String editParentDataScreen = "editParentDataScreen";
 }
