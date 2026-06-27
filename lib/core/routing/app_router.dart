@@ -14,6 +14,7 @@ import 'package:soliel/features/doctor_profile/ui/screens/doctor_profile_screen.
 import 'package:soliel/features/doctor_profile/ui/screens/edit_profile_screen.dart';
 import 'package:soliel/features/games/ui/screens/games_screen.dart';
 import 'package:soliel/features/games/ui/screens/start_game_screen.dart';
+import 'package:soliel/features/home/ui/screens/all_doctors_screen.dart';
 import 'package:soliel/features/home/ui/screens/home_screen.dart';
 import 'package:soliel/features/onboarding/screens/onboarding_screen.dart';
 import 'package:soliel/features/onboarding/screens/select_role_screen.dart';
@@ -159,6 +160,9 @@ class AppRouter {
 
       case Routes.editParentDataScreen:
         return MaterialPageRoute(builder: (_) => const EditParentDataScreen());
+
+      case Routes.allDoctorsScreen:
+        return MaterialPageRoute(builder: (_) => const AllDoctorsScreen());
 
       default:
         return MaterialPageRoute(

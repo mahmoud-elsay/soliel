@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:soliel/core/helpers/extensions.dart';
+import 'package:soliel/core/routing/routes.dart';
 import 'package:soliel/core/theming/colors_manger.dart';
 import 'package:soliel/core/theming/styles.dart';
 import 'package:soliel/core/widgets/app_gradient_text.dart';
@@ -20,7 +22,12 @@ class HomeDoctorsSection extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               // "شاهد الكل" on the left
-              Text('شاهد الكل', style: TextStyles.font14GreyMedium),
+              GestureDetector(
+                onTap: () {
+                  context.pushNamed(Routes.allDoctorsScreen);
+                },
+                child: Text('شاهد الكل', style: TextStyles.font14GreyMedium),
+              ),
 
               // "اقتراحات دكاتره" gradient title on the right
               AppGradientText(

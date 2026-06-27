@@ -18,7 +18,7 @@ class EyeDetector {
   static const double _maxYaw = 35;
   static const double _maxPitch = 30;
   static const double _minEyeOpenProbability = 0.30;
-  static const int _minEyeContourPoints = 4;
+  static const int _minEyeContourPoints = 15;
 
   // ── Gaze model signal weights ──────────────────────────────────────────────
   /// Head pose is the dominant signal on mobile — children turn toward stimuli.

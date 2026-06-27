@@ -53,7 +53,7 @@ class _ScannerScreenState extends State<ScannerScreen>
     with SingleTickerProviderStateMixin {
   // ── Config ───────────────────────────────────────────────────────────────────
   static const int _sessionSeconds = 12;
-  static const int _minPoints = 35;
+  static const int _minPoints = 15;
   static const double _pointResolution = 1000.0;
   static const int _minSampleGapMs = 90;
   static const double _maxJumpDistance = 0.30;
@@ -539,13 +539,6 @@ class _ScannerScreenState extends State<ScannerScreen>
                         '${_secondsLeft}s',
                         Colors.blueAccent,
                       ),
-                      _buildMiniStat(
-                        'الجودة',
-                        '${(_trackingQuality() * 100).round()}%',
-                        _trackingQuality() >= _minTrackingQuality
-                            ? Colors.greenAccent
-                            : Colors.orangeAccent,
-                      ),
                     ],
                   ),
                 const Spacer(),
@@ -664,15 +657,6 @@ class _ScannerScreenState extends State<ScannerScreen>
                                   painter: StimulusTargetPainter(
                                     progress: _stimulusController.value,
                                   ),
-                                ),
-                              ),
-                            ),
-                          if (_isRecording || _recordingDone)
-                            IgnorePointer(
-                              child: CustomPaint(
-                                painter: GazePathPainter(
-                                  _previewPoints,
-                                  resolution: _pointResolution,
                                 ),
                               ),
                             ),
@@ -828,46 +812,4 @@ class StimulusTargetPainter extends CustomPainter {
       oldDelegate.progress != progress;
 }
 
-// ── Gaze Path Painter ─────────────────────────────────────────────────────────
-class GazePathPainter extends CustomPainter {
-  final List<ScanPoint> points;
-  final double resolution;
 
-  GazePathPainter(this.points, {required this.resolution});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (points.isEmpty) return;
-
-    final linePaint = Paint()
-      ..color = Colors.yellowAccent.withValues(alpha: 0.75)
-      ..strokeWidth = 2.5
-      ..strokeCap = StrokeCap.round;
-
-    final dotPaint = Paint()..style = PaintingStyle.fill;
-
-    Offset? prev;
-
-    for (final point in points) {
-      final px = (point.x / resolution) * size.width;
-      final py = (point.y / resolution) * size.height;
-      final offset = Offset(px, py);
-
-      if (prev != null) canvas.drawLine(prev, offset, linePaint);
-
-      final radius = (3.0 + point.duration / 100).clamp(3.0, 11.0);
-
-      dotPaint.color = Colors.orangeAccent.withValues(alpha: 0.7);
-      canvas.drawCircle(offset, radius, dotPaint);
-
-      dotPaint.color = Colors.white;
-      canvas.drawCircle(offset, 1.8, dotPaint);
-
-      prev = offset;
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant GazePathPainter oldDelegate) =>
-      oldDelegate.points.length != points.length;
-}
