@@ -27,21 +27,27 @@ class EyeScanResponse {
 
   Map<String, dynamic> toJson() => _$EyeScanResponseToJson(this);
 
-  bool get isHighRisk => asdProbability >= 0.75;
-  bool get isModerateRisk => asdProbability >= 0.40 && asdProbability < 0.75;
-  bool get isLowRisk => asdProbability < 0.40;
+  bool get isHighRisk => normalizedAsdProbability >= 0.75;
+  bool get isModerateRisk =>
+      normalizedAsdProbability >= 0.40 && normalizedAsdProbability < 0.75;
+  bool get isLowRisk => normalizedAsdProbability < 0.40;
 
-  double get normalizedAsdProbability {
-    if (asdProbability < 0) return 0;
-    if (asdProbability > 1) return 1;
-    return asdProbability;
+  double get normalizedAsdProbability => _normalizeProbability(asdProbability);
+
+  double get normalizedTdProbability => _normalizeProbability(tdProbability);
+
+  double get normalizedConfidence => _normalizeProbability(confidence);
+
+  double _normalizeProbability(double value) {
+    if (value.isNaN || value.isInfinite || value < 0) return 0;
+    if (value <= 1) return value;
+    if (value <= 100) return value / 100;
+    return 1;
   }
 
   int get percentageInt => (normalizedAsdProbability * 100).round();
 
   int get confidencePercentageInt {
-    if (confidence < 0) return 0;
-    if (confidence > 1) return 100;
-    return (confidence * 100).round();
+    return (normalizedConfidence * 100).round();
   }
 }

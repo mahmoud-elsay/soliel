@@ -25,7 +25,11 @@ class AllDoctorsScreen extends StatelessWidget {
                 child: ListView.builder(
                   itemCount: 3,
                   itemBuilder: (context, index) {
-                    final names = ['د/ هاله محمد', 'د/ محمد محمود', 'د/ ساره احمد'];
+                    final names = [
+                      'د/ هاله محمد',
+                      'د/ محمد محمود',
+                      'د/ ساره احمد',
+                    ];
                     final distances = ['80m away', '70m away', '520m away'];
                     final images = [
                       'assets/images/doctor_avatar.jpg',

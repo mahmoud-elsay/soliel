@@ -1,3 +1,4 @@
+import 'dart:developer' as developer;
 import 'dart:math' as math;
 import 'dart:ui';
 
@@ -6,29 +7,33 @@ import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 
 /// Multi-signal gaze estimator designed for mobile ML Kit.
 ///
-/// Combines three independent gaze signals:
-///   1. **Head Pose** (primary) — yaw/pitch from ML Kit Euler angles
-///   2. **Iris Position** — contour centroid position relative to eye corners
-///   3. **Eye Asymmetry** — difference between left/right eye iris ratios
+/// Combines three gaze signals:
+///   1. **Dark pupil position** — estimated from camera luminance inside each
+///      ML Kit eye contour.
+///   2. **Head Pose** — yaw/pitch from ML Kit Euler angles, used as a helper.
+///   3. **Eye Asymmetry** — left/right pupil-ratio difference.
 ///
-/// This approach mirrors how research gaze-estimation models (e.g. GazeCapture,
-/// iTracker) decompose the problem, adapted for ML Kit's available signals.
+/// ML Kit face detection does not provide iris landmarks. Using the eye-contour
+/// centroid as an iris proxy makes the path look valid while carrying little
+/// gaze information, so this detector samples the Y plane directly instead.
 class EyeDetector {
   // ── Quality gate thresholds ────────────────────────────────────────────────
-  static const double _maxYaw = 35;
-  static const double _maxPitch = 30;
-  static const double _minEyeOpenProbability = 0.30;
-  static const int _minEyeContourPoints = 15;
+  static const double _maxYaw = 40;
+  static const double _maxPitch = 35;
+  static const double _minEyeOpenProbability = 0.20;
+  static const int _minEyeContourPoints = 10;
+  static const double _minPupilConfidence = 0.05;
 
   // ── Gaze model signal weights ──────────────────────────────────────────────
-  /// Head pose is the dominant signal on mobile — children turn toward stimuli.
-  static const double _headPoseWeight = 0.55;
+  /// Real pupil movement must dominate; head pose alone is too easy to
+  /// misclassify as a valid gaze path.
+  static const double _pupilPositionWeight = 0.45;
 
-  /// Iris-in-aperture position is the secondary signal.
-  static const double _irisPositionWeight = 0.30;
+  /// Head pose stabilizes the estimate but is intentionally not primary.
+  static const double _headPoseWeight = 0.45;
 
   /// Left/right eye asymmetry captures lateral gaze shifts.
-  static const double _eyeAsymmetryWeight = 0.15;
+  static const double _eyeAsymmetryWeight = 0.10;
 
   // ── Head-pose → gaze mapping ───────────────────────────────────────────────
   /// The full angular range mapped to [0..1] gaze.
@@ -38,11 +43,11 @@ class EyeDetector {
   /// Pitch range of ±20° maps to full vertical gaze.
   static const double _pitchRangeDeg = 20.0;
 
-  // ── Iris position scaling ──────────────────────────────────────────────────
-  /// How much to amplify small iris-ratio deviations from center.
+  // ── Pupil position scaling ─────────────────────────────────────────────────
+  /// How much to amplify small pupil-ratio deviations from center.
   /// Higher = more sensitive to small eye movements.
-  static const double _irisHorizontalGain = 2.5;
-  static const double _irisVerticalGain = 2.0;
+  static const double _pupilHorizontalGain = 1.8;
+  static const double _pupilVerticalGain = 1.5;
 
   final FaceDetector _faceDetector;
 
@@ -51,10 +56,10 @@ class EyeDetector {
         options: FaceDetectorOptions(
           enableContours: true,
           enableClassification: true,
-          enableLandmarks: true,
-          enableTracking: true,
-          performanceMode: FaceDetectorMode.accurate,
-          minFaceSize: 0.15,
+          enableLandmarks: false,
+          enableTracking: false,
+          performanceMode: FaceDetectorMode.fast,
+          minFaceSize: 0.10,
         ),
       );
 
@@ -62,64 +67,112 @@ class EyeDetector {
   // Public API
   // ═══════════════════════════════════════════════════════════════════════════
 
+  /// Whether we've logged the image format info (one-shot per session).
+  bool _loggedImageFormat = false;
+
   Future<Map<String, double>?> detectGazePoint(
     CameraImage image,
     CameraDescription camera,
   ) async {
     try {
+      // ── Phase 0: one-shot image format diagnostics ──────────────────────
+      if (!_loggedImageFormat) {
+        _loggedImageFormat = true;
+        developer.log(
+          '[EyeDetector] Image format: planes=${image.planes.length}, '
+          'format.group=${image.format.group}, '
+          'format.raw=${image.format.raw}, '
+          'size=${image.width}x${image.height}',
+          name: 'EyeScanner',
+        );
+      }
+
       final inputImage = _toInputImage(image, camera);
       if (inputImage == null) return null;
 
       final faces = await _faceDetector.processImage(inputImage);
-      if (faces.isEmpty) return null;
+      if (faces.isEmpty) {
+        developer.log('[EyeDetector] No faces detected', name: 'EyeScanner');
+        return null;
+      }
 
       final face = _pickPrimaryFace(faces);
 
-      // Soft quality: compute quality but only gate on extreme failures
-      final quality = _computeFrameQuality(face);
-      if (quality <= 0.05) return null;
-
+      final headGaze = _headPoseGaze(face);
       final leftContour = face.contours[FaceContourType.leftEye];
       final rightContour = face.contours[FaceContourType.rightEye];
 
-      // Must have at least one eye with enough contour points
+      final leftPts = leftContour?.points.length ?? 0;
+      final rightPts = rightContour?.points.length ?? 0;
+
       final hasLeft = _hasEnoughContourPoints(leftContour);
       final hasRight = _hasEnoughContourPoints(rightContour);
-      if (!hasLeft && !hasRight) return null;
+      if (!hasLeft && !hasRight && headGaze == null) {
+        developer.log(
+          '[EyeDetector] Rejected: contours L=$leftPts R=$rightPts, '
+          'headGaze=null',
+          name: 'EyeScanner',
+        );
+        return null;
+      }
 
-      // ── Compute the three gaze signals ───────────────────────────────────
-      final headGaze = _headPoseGaze(face);
-      final irisGaze = _irisPositionGaze(leftContour, rightContour, face);
-      final asymmetryGaze = _eyeAsymmetryGaze(leftContour, rightContour);
+      final leftPupil = hasLeft ? _darkPupilSample(leftContour, image) : null;
+      final rightPupil = hasRight
+          ? _darkPupilSample(rightContour, image)
+          : null;
+      final pupilConfidence = _combinedPupilConfidence(leftPupil, rightPupil);
+
+      // Soft quality: a phone camera should not fail the scan only because
+      // pupil contrast is weak in one frame.
+      final quality = _computeFrameQuality(face, pupilConfidence);
+
+      // ── Phase 0: per-frame diagnostics ─────────────────────────────────
+      developer.log(
+        '[EyeDetector] contourPts L=$leftPts R=$rightPts | '
+        'pupilConf=${pupilConfidence.toStringAsFixed(3)} | '
+        'quality=${quality.toStringAsFixed(3)} | '
+        'yaw=${face.headEulerAngleY?.toStringAsFixed(1)} '
+        'pitch=${face.headEulerAngleX?.toStringAsFixed(1)}',
+        name: 'EyeScanner',
+      );
+
+      if (quality <= 0.05) return null;
+
+      // ── Compute the gaze signals ─────────────────────────────────────────
+      final pupilGaze = _pupilPositionGaze(leftPupil, rightPupil);
+      final asymmetryGaze = _eyeAsymmetryGaze(leftPupil, rightPupil);
 
       // ── Weighted fusion ──────────────────────────────────────────────────
       double totalWeight = 0;
       double gazeX = 0;
       double gazeY = 0;
 
-      if (headGaze != null) {
-        gazeX += headGaze['x']! * _headPoseWeight;
-        gazeY += headGaze['y']! * _headPoseWeight;
-        totalWeight += _headPoseWeight;
-      }
-
-      if (irisGaze != null) {
-        gazeX += irisGaze['x']! * _irisPositionWeight;
-        gazeY += irisGaze['y']! * _irisPositionWeight;
-        totalWeight += _irisPositionWeight;
+      if (pupilGaze != null && pupilConfidence >= _minPupilConfidence) {
+        final pupilWeight = _pupilPositionWeight * pupilConfidence;
+        gazeX += pupilGaze['x']! * pupilWeight;
+        gazeY += pupilGaze['y']! * pupilWeight;
+        totalWeight += pupilWeight;
       }
 
       if (asymmetryGaze != null) {
-        gazeX += asymmetryGaze['x']! * _eyeAsymmetryWeight;
-        gazeY += asymmetryGaze['y']! * _eyeAsymmetryWeight;
-        totalWeight += _eyeAsymmetryWeight;
+        final asymmetryWeight = _eyeAsymmetryWeight * pupilConfidence;
+        gazeX += asymmetryGaze['x']! * asymmetryWeight;
+        gazeY += asymmetryGaze['y']! * asymmetryWeight;
+        totalWeight += asymmetryWeight;
+      }
+
+      if (headGaze != null) {
+        final headWeight = pupilGaze == null ? 1.0 : _headPoseWeight;
+        gazeX += headGaze['x']! * headWeight;
+        gazeY += headGaze['y']! * headWeight;
+        totalWeight += headWeight;
       }
 
       if (totalWeight <= 0) return null;
       gazeX /= totalWeight;
       gazeY /= totalWeight;
 
-      // Front camera mirror correction
+      // Front camera mirror correction.
       if (camera.lensDirection == CameraLensDirection.front) {
         gazeX = 1.0 - gazeX;
       }
@@ -127,10 +180,10 @@ class EyeDetector {
       gazeX = gazeX.clamp(0.0, 1.0);
       gazeY = gazeY.clamp(0.0, 1.0);
 
-      // Preview coordinates for scan path visualization
+      // Preview coordinates for scan path visualization.
       final eyeCenter = _resolveEyeCenter(
-        _contourCenter(leftContour),
-        _contourCenter(rightContour),
+        leftPupil?.center,
+        rightPupil?.center,
       );
       final previewNorm = eyeCenter != null
           ? _normalizePreviewCoordinates(
@@ -181,115 +234,206 @@ class EyeDetector {
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // Signal 2: Iris Position within Eye Aperture
+  // Signal 2: Pupil Position within Eye Aperture
   // ═══════════════════════════════════════════════════════════════════════════
 
-  /// Estimates gaze from the position of the contour centroid (iris proxy)
-  /// relative to the eye corners (aperture boundaries).
-  ///
-  /// When looking left, the iris shifts toward the left eye corner,
-  /// changing the centroid-to-corner ratio.
-  Map<String, double>? _irisPositionGaze(
-    FaceContour? leftContour,
-    FaceContour? rightContour,
-    Face face,
+  /// Estimates gaze from the darkest stable pixel cluster inside the eye contour.
+  Map<String, double>? _pupilPositionGaze(
+    _EyeSample? leftPupil,
+    _EyeSample? rightPupil,
   ) {
-    final leftRatio = _irisRatioInEye(leftContour);
-    final rightRatio = _irisRatioInEye(rightContour);
+    final pupilRatio = _weightedPupilRatio(leftPupil, rightPupil);
+    if (pupilRatio == null) return null;
 
-    if (leftRatio == null && rightRatio == null) return null;
-
-    double irisRatioX;
-    double irisRatioY;
-
-    if (leftRatio != null && rightRatio != null) {
-      // Average both eyes for stability
-      irisRatioX = (leftRatio['x']! + rightRatio['x']!) / 2;
-      irisRatioY = (leftRatio['y']! + rightRatio['y']!) / 2;
-    } else {
-      final r = leftRatio ?? rightRatio!;
-      irisRatioX = r['x']!;
-      irisRatioY = r['y']!;
-    }
-
-    // The ratio is 0..1 where 0.5 = centered. Amplify deviations.
-    final gazeX = 0.5 + (irisRatioX - 0.5) * _irisHorizontalGain;
-    final gazeY = 0.5 + (irisRatioY - 0.5) * _irisVerticalGain;
+    final gazeX = 0.5 + (pupilRatio['x']! - 0.5) * _pupilHorizontalGain;
+    final gazeY = 0.5 + (pupilRatio['y']! - 0.5) * _pupilVerticalGain;
 
     return {'x': gazeX.clamp(0.0, 1.0), 'y': gazeY.clamp(0.0, 1.0)};
   }
 
-  /// Computes the iris position ratio within a single eye's aperture.
-  /// Returns {'x': 0..1, 'y': 0..1} where 0.5 means centered.
-  Map<String, double>? _irisRatioInEye(FaceContour? contour) {
+  Map<String, double>? _weightedPupilRatio(
+    _EyeSample? leftPupil,
+    _EyeSample? rightPupil,
+  ) {
+    final samples = <_EyeSample>[
+      if (leftPupil != null) leftPupil,
+      if (rightPupil != null) rightPupil,
+    ];
+    if (samples.isEmpty) return null;
+
+    var totalWeight = 0.0;
+    var sumX = 0.0;
+    var sumY = 0.0;
+
+    for (final sample in samples) {
+      final weight = math.max(sample.confidence, 0.01);
+      totalWeight += weight;
+      sumX += sample.ratioX * weight;
+      sumY += sample.ratioY * weight;
+    }
+
+    if (totalWeight <= 0) return null;
+    return {'x': sumX / totalWeight, 'y': sumY / totalWeight};
+  }
+
+  _EyeSample? _darkPupilSample(FaceContour? contour, CameraImage image) {
+    final bounds = _eyeContourBounds(contour);
+    if (bounds == null) return null;
+
+    final lumaPlane = image.planes.first;
+    final luma = lumaPlane.bytes;
+    final rowStride = lumaPlane.bytesPerRow;
+    final imageWidth = image.width;
+    final imageHeight = image.height;
+
+    final minX = math.max(0, bounds.left.floor());
+    final maxX = math.min(imageWidth - 1, bounds.right.ceil());
+    final minY = math.max(0, bounds.top.floor());
+    final maxY = math.min(imageHeight - 1, bounds.bottom.ceil());
+
+    if (maxX <= minX || maxY <= minY) return null;
+
+    final eyeWidth = (maxX - minX).toDouble();
+    final eyeHeight = (maxY - minY).toDouble();
+    if (eyeWidth < 4 || eyeHeight < 2) return null;
+
+    final centerX = (minX + maxX) / 2.0;
+    final centerY = (minY + maxY) / 2.0;
+    final radiusX = math.max(eyeWidth / 2.0, 1.0);
+    final radiusY = math.max(eyeHeight / 2.0, 1.0);
+
+    var sampleCount = 0;
+    var lumaSum = 0.0;
+    var minLuma = 255.0;
+
+    for (var y = minY; y <= maxY; y++) {
+      for (var x = minX; x <= maxX; x++) {
+        final dx = (x - centerX) / radiusX;
+        final dy = (y - centerY) / radiusY;
+        final normalizedRadius = dx * dx + dy * dy;
+        if (normalizedRadius > 1.0 || dy.abs() > 0.82) continue;
+
+        final byteIndex = y * rowStride + x;
+        if (byteIndex < 0 || byteIndex >= luma.length) continue;
+
+        final value = luma[byteIndex].toDouble();
+        sampleCount++;
+        lumaSum += value;
+        if (value < minLuma) minLuma = value;
+      }
+    }
+
+    if (sampleCount < 8) return null;
+
+    final meanLuma = lumaSum / sampleCount;
+    var weightSum = 0.0;
+    var weightedX = 0.0;
+    var weightedY = 0.0;
+
+    for (var y = minY; y <= maxY; y++) {
+      for (var x = minX; x <= maxX; x++) {
+        final dx = (x - centerX) / radiusX;
+        final dy = (y - centerY) / radiusY;
+        final normalizedRadius = dx * dx + dy * dy;
+        if (normalizedRadius > 1.0 || dy.abs() > 0.82) continue;
+
+        final byteIndex = y * rowStride + x;
+        if (byteIndex < 0 || byteIndex >= luma.length) continue;
+
+        final darkness = meanLuma - luma[byteIndex].toDouble();
+        if (darkness <= 4) continue;
+
+        final edgeWeight = (1.0 - normalizedRadius * 0.35)
+            .clamp(0.45, 1.0)
+            .toDouble();
+        final weight = darkness * darkness * edgeWeight;
+        weightSum += weight;
+        weightedX += x * weight;
+        weightedY += y * weight;
+      }
+    }
+
+    if (weightSum <= 0) return null;
+
+    final pupilX = weightedX / weightSum;
+    final pupilY = weightedY / weightSum;
+    final ratioX = ((pupilX - minX) / eyeWidth).clamp(0.0, 1.0).toDouble();
+    final ratioY = ((pupilY - minY) / eyeHeight).clamp(0.0, 1.0).toDouble();
+    final contrast = ((meanLuma - minLuma) / 55.0).clamp(0.0, 1.0).toDouble();
+    final support = (sampleCount / 80.0).clamp(0.0, 1.0).toDouble();
+    final confidence = (contrast * 0.85 + support * 0.15)
+        .clamp(0.0, 1.0)
+        .toDouble();
+
+    return _EyeSample(
+      center: Offset(pupilX, pupilY),
+      ratioX: ratioX,
+      ratioY: ratioY,
+      confidence: confidence,
+    );
+  }
+
+  Rect? _eyeContourBounds(FaceContour? contour) {
     if (contour == null || contour.points.length < _minEyeContourPoints) {
       return null;
     }
 
     final points = contour.points;
+    var minX = points.first.x.toDouble();
+    var maxX = minX;
+    var minY = points.first.y.toDouble();
+    var maxY = minY;
 
-    // Find bounding extremes of the eye contour
-    double minX = points.first.x.toDouble();
-    double maxX = minX;
-    double minY = points.first.y.toDouble();
-    double maxY = minY;
-
-    double sumX = 0;
-    double sumY = 0;
-
-    for (final p in points) {
-      final px = p.x.toDouble();
-      final py = p.y.toDouble();
-      if (px < minX) minX = px;
-      if (px > maxX) maxX = px;
-      if (py < minY) minY = py;
-      if (py > maxY) maxY = py;
-      sumX += px;
-      sumY += py;
+    for (final point in points.skip(1)) {
+      final px = point.x.toDouble();
+      final py = point.y.toDouble();
+      minX = math.min(minX, px);
+      maxX = math.max(maxX, px);
+      minY = math.min(minY, py);
+      maxY = math.max(maxY, py);
     }
 
-    final width = maxX - minX;
-    final height = maxY - minY;
-    if (width < 2 || height < 1) return null;
+    if (maxX - minX < 4 || maxY - minY < 2) return null;
+    return Rect.fromLTRB(minX, minY, maxX, maxY);
+  }
 
-    // Centroid of the contour ≈ visible center of the eye opening ≈ iris proxy
-    final centroidX = sumX / points.length;
-    final centroidY = sumY / points.length;
+  double _combinedPupilConfidence(
+    _EyeSample? leftPupil,
+    _EyeSample? rightPupil,
+  ) {
+    final samples = <_EyeSample>[
+      if (leftPupil != null) leftPupil,
+      if (rightPupil != null) rightPupil,
+    ];
+    if (samples.isEmpty) return 0.0;
 
-    // Where is the centroid within the bounding box?
-    final ratioX = (centroidX - minX) / width;
-    final ratioY = (centroidY - minY) / height;
-
-    return {'x': ratioX, 'y': ratioY};
+    final total = samples.fold<double>(
+      0.0,
+      (sum, sample) => sum + sample.confidence,
+    );
+    return (total / samples.length).clamp(0.0, 1.0).toDouble();
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
   // Signal 3: Eye Asymmetry (lateral gaze)
   // ═══════════════════════════════════════════════════════════════════════════
 
-  /// When looking left, the left eye's iris shifts more toward its nasal
-  /// corner than the right eye's, creating a measurable asymmetry.
-  /// This signal only contributes to horizontal gaze.
+  /// When looking left, the left and right pupil ratios diverge slightly.
+  /// This signal only contributes as a small stabilizer.
   Map<String, double>? _eyeAsymmetryGaze(
-    FaceContour? leftContour,
-    FaceContour? rightContour,
+    _EyeSample? leftPupil,
+    _EyeSample? rightPupil,
   ) {
-    final leftRatio = _irisRatioInEye(leftContour);
-    final rightRatio = _irisRatioInEye(rightContour);
+    if (leftPupil == null || rightPupil == null) return null;
 
-    if (leftRatio == null || rightRatio == null) return null;
+    final confidence = math.min(leftPupil.confidence, rightPupil.confidence);
+    if (confidence < _minPupilConfidence) return null;
 
-    // Asymmetry: if both eyes look the same direction, their ratios diverge
-    // (one iris shifts nasal, the other temporal).
-    // The difference captures pure gaze shift independent of head pose.
-    final asymmetry = leftRatio['x']! - rightRatio['x']!;
+    final asymmetry = leftPupil.ratioX - rightPupil.ratioX;
+    final gazeX = 0.5 + asymmetry * 2.0;
 
-    // Amplify and map to [0,1]
-    final gazeX = 0.5 + asymmetry * 3.0;
-
-    // Vertical asymmetry is less useful, center it
-    final vertAsymmetry = (leftRatio['y']! + rightRatio['y']!) / 2;
-    final gazeY = 0.5 + (vertAsymmetry - 0.5) * 1.5;
+    final verticalAverage = (leftPupil.ratioY + rightPupil.ratioY) / 2;
+    final gazeY = 0.5 + (verticalAverage - 0.5) * 1.2;
 
     return {'x': gazeX.clamp(0.0, 1.0), 'y': gazeY.clamp(0.0, 1.0)};
   }
@@ -298,17 +442,17 @@ class EyeDetector {
   // Quality Estimation
   // ═══════════════════════════════════════════════════════════════════════════
 
-  double _computeFrameQuality(Face face) {
-    // 1. Head pose stability — better quality when more frontal
+  double _computeFrameQuality(Face face, double pupilConfidence) {
+    // 1. Head pose stability — better quality when more frontal.
     final yaw = (face.headEulerAngleY ?? 0).abs().toDouble();
     final pitch = (face.headEulerAngleX ?? 0).abs().toDouble();
 
-    // Quadratic falloff: severe angles penalized more
+    // Quadratic falloff: severe angles penalized more.
     final yawScore = math.pow(1.0 - (yaw / _maxYaw).clamp(0.0, 1.0), 1.5);
     final pitchScore = math.pow(1.0 - (pitch / _maxPitch).clamp(0.0, 1.0), 1.5);
-    final poseScore = (yawScore + pitchScore) / 2;
+    final poseScore = ((yawScore + pitchScore) / 2).toDouble();
 
-    // 2. Eye visibility
+    // 2. Eye visibility.
     final leftOpen = face.leftEyeOpenProbability ?? 0.5;
     final rightOpen = face.rightEyeOpenProbability ?? 0.5;
     if (leftOpen < _minEyeOpenProbability &&
@@ -317,12 +461,11 @@ class EyeDetector {
     }
     final eyeOpenScore = ((leftOpen + rightOpen) / 2).clamp(0.0, 1.0);
 
-    // 3. Face size — larger face = closer = better data
+    // 3. Face size — larger face = closer = better data.
     final faceArea = face.boundingBox.width * face.boundingBox.height;
-    // Assume 150×150 px is minimum useful, 400×400 is ideal
     final faceSizeScore = (faceArea / (300 * 300)).clamp(0.0, 1.0);
 
-    // 4. Contour availability bonus
+    // 4. Contour availability bonus.
     final hasLeftEye = _hasEnoughContourPoints(
       face.contours[FaceContourType.leftEye],
     );
@@ -335,10 +478,11 @@ class EyeDetector {
         ? 0.6
         : 0.0;
 
-    return (poseScore * 0.30 +
-            eyeOpenScore * 0.30 +
-            faceSizeScore * 0.20 +
-            contourScore * 0.20)
+    return (poseScore * 0.22 +
+            eyeOpenScore * 0.20 +
+            faceSizeScore * 0.13 +
+            contourScore * 0.15 +
+            pupilConfidence * 0.30)
         .clamp(0.0, 1.0)
         .toDouble();
   }
@@ -359,18 +503,6 @@ class EyeDetector {
 
   bool _hasEnoughContourPoints(FaceContour? contour) {
     return contour != null && contour.points.length >= _minEyeContourPoints;
-  }
-
-  Offset? _contourCenter(FaceContour? contour) {
-    if (contour == null || contour.points.isEmpty) return null;
-
-    var sumX = 0.0;
-    var sumY = 0.0;
-    for (final point in contour.points) {
-      sumX += point.x.toDouble();
-      sumY += point.y.toDouble();
-    }
-    return Offset(sumX / contour.points.length, sumY / contour.points.length);
   }
 
   Offset? _resolveEyeCenter(Offset? leftEye, Offset? rightEye) {
@@ -446,6 +578,20 @@ class EyeDetector {
 // Reduces jitter at rest while preserving fast movements.
 // Based on: Casiez et al., "1€ Filter", CHI 2012
 // ═════════════════════════════════════════════════════════════════════════════
+
+class _EyeSample {
+  final Offset center;
+  final double ratioX;
+  final double ratioY;
+  final double confidence;
+
+  const _EyeSample({
+    required this.center,
+    required this.ratioX,
+    required this.ratioY,
+    required this.confidence,
+  });
+}
 
 class _OneEuroFilter {
   final double _minCutoff;
