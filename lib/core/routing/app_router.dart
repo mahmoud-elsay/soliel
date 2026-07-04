@@ -34,6 +34,7 @@ import 'package:soliel/features/settings/ui/screens/settings_screen.dart';
 import 'package:soliel/features/splash/splash_screen.dart';
 import 'package:soliel/features/test/data/models/eye_scan_response.dart';
 import 'package:soliel/features/test/logic/eye_scan_cubit/eye_scan_cubit.dart';
+import 'package:soliel/features/test/ui/screens/questionnaire_result_screen.dart';
 import 'package:soliel/features/test/ui/screens/questionnaire_screen.dart';
 import 'package:soliel/features/test/ui/screens/questions_screen.dart';
 import 'package:soliel/features/test/ui/screens/scan_result_screen.dart';
@@ -163,6 +164,10 @@ class AppRouter {
 
       case Routes.allDoctorsScreen:
         return MaterialPageRoute(builder: (_) => const AllDoctorsScreen());
+      case Routes.questionnaireResultScreen:
+        return MaterialPageRoute(
+          builder: (_) => const QuestionnaireResultScreen(),
+        );
 
       default:
         return MaterialPageRoute(

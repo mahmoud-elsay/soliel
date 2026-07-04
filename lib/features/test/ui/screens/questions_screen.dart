@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:soliel/core/routing/routes.dart';
 import 'package:soliel/core/theming/colors_manger.dart';
 import 'package:soliel/core/theming/styles.dart';
 import 'package:soliel/core/widgets/app_gradient_text.dart';
@@ -16,7 +17,11 @@ class QuestionModel {
   final List<String> options;
   int? selectedIndex;
 
-  QuestionModel({required this.question, required this.options, this.selectedIndex});
+  QuestionModel({
+    required this.question,
+    required this.options,
+    this.selectedIndex,
+  });
 }
 
 class QuestionsScreen extends StatefulWidget {
@@ -93,7 +98,7 @@ class _QuestionsScreenState extends State<QuestionsScreen> {
                 },
               ),
             ),
-            _buildBottomButton(),
+            _buildBottomButton(context),
           ],
         ),
       ),
@@ -225,7 +230,7 @@ class _QuestionsScreenState extends State<QuestionsScreen> {
     );
   }
 
-  Widget _buildBottomButton() {
+  Widget _buildBottomButton(BuildContext context) {
     bool isLast = true; // For now
     return Padding(
       padding: EdgeInsets.all(20.r),
@@ -237,7 +242,17 @@ class _QuestionsScreenState extends State<QuestionsScreen> {
           borderRadius: BorderRadius.circular(10.r),
         ),
         child: ElevatedButton(
-          onPressed: () {},
+          onPressed: () {
+            if (isLast) {
+              // TODO: replace with the real aggregated domain scores once
+              // scoring logic across all 3 domain quizzes is in place.
+              // Passing no arguments falls back to demo data on the
+              // result screen so navigation can be verified end-to-end now.
+              Navigator.pushNamed(context, Routes.questionnaireResultScreen);
+            } else {
+              // TODO: navigate to the next domain's QuestionsScreen.
+            }
+          },
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.transparent,
             shadowColor: Colors.transparent,
@@ -246,7 +261,7 @@ class _QuestionsScreenState extends State<QuestionsScreen> {
             ),
           ),
           child: Text(
-            isLast ? 'حفظ البيانات' : 'التالي', 
+            isLast ? 'حفظ البيانات' : 'التالي',
             style: TextStyles.font16WhiteSemiBold,
           ),
         ),

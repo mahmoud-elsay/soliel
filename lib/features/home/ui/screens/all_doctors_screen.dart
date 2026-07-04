@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:soliel/core/di/dependency_injection.dart';
 import 'package:soliel/core/helpers/extensions.dart';
 import 'package:soliel/core/helpers/spacing.dart';
 import 'package:soliel/core/theming/colors_manger.dart';
 import 'package:soliel/core/theming/styles.dart';
+
+import 'package:soliel/features/home/logic/doctors_cubit/doctors_state.dart';
+import 'package:soliel/features/home/logic/doctors_cubit/doctors_cubit.dart';
 import 'package:soliel/features/home/ui/widgets/horizontal_doctor_card.dart';
 
 class AllDoctorsScreen extends StatelessWidget {
@@ -11,41 +16,51 @@ class AllDoctorsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: ColorsManager.white,
-      body: SafeArea(
-        child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: 20.w),
-          child: Column(
-            children: [
-              verticalSpace(20),
-              _buildHeader(context),
-              verticalSpace(30),
-              Expanded(
-                child: ListView.builder(
-                  itemCount: 3,
-                  itemBuilder: (context, index) {
-                    final names = [
-                      'د/ هاله محمد',
-                      'د/ محمد محمود',
-                      'د/ ساره احمد',
-                    ];
-                    final distances = ['80m away', '70m away', '520m away'];
-                    final images = [
-                      'assets/images/doctor_avatar.jpg',
-                      'assets/images/doctor_container_image.jpg',
-                      'assets/images/doctor_avatar.jpg',
-                    ];
-                    return HorizontalDoctorCard(
-                      name: names[index],
-                      distance: distances[index],
-                      rating: '4.7',
-                      imagePath: images[index % images.length],
-                    );
-                  },
+    return BlocProvider(
+      create: (_) => getIt<DoctorsCubit>()..getDoctors(),
+      child: Scaffold(
+        backgroundColor: ColorsManager.white,
+        body: SafeArea(
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: 20.w),
+            child: Column(
+              children: [
+                verticalSpace(20),
+                _buildHeader(context),
+                verticalSpace(30),
+                Expanded(
+                  child: BlocBuilder<DoctorsCubit, DoctorsState>(
+                    builder: (context, state) {
+                      if (state is DoctorsLoading) {
+                        return const Center(child: CircularProgressIndicator());
+                      } else if (state is DoctorsSuccess) {
+                        if (state.doctors.isEmpty) {
+                          return Center(
+                            child: Text(
+                              'لا يوجد دكاتره متاحين حالياً',
+                              style: TextStyles.font14GreyMedium,
+                            ),
+                          );
+                        }
+                        return ListView.builder(
+                          itemCount: state.doctors.length,
+                          itemBuilder: (context, index) =>
+                              HorizontalDoctorCard(doctor: state.doctors[index]),
+                        );
+                      } else if (state is DoctorsError) {
+                        return Center(
+                          child: Text(
+                            'حدث خطأ أثناء تحميل الدكاتره',
+                            style: TextStyles.font14GreyMedium,
+                          ),
+                        );
+                      }
+                      return const SizedBox.shrink();
+                    },
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

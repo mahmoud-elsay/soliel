@@ -8,6 +8,7 @@ import 'package:soliel/features/auth/login/data/models/login_request_body.dart';
 import 'package:soliel/features/auth/login/data/models/login_response_body.dart';
 import 'package:soliel/features/auth/parent_sign_up/data/models/parent_sign_up_request_body.dart';
 import 'package:soliel/features/auth/parent_sign_up/data/models/parent_sign_up_response_body.dart';
+import 'package:soliel/features/home/data/models/doctors_model.dart';
 import 'package:soliel/features/test/data/models/eye_scan_request.dart';
 import 'package:soliel/features/test/data/models/eye_scan_response.dart';
 
@@ -46,4 +47,12 @@ abstract class ApiService {
 
   @POST(ApiConstants.eyeScanAnalyze)
   Future<EyeScanResponse> analyzeEyeScan(@Body() EyeScanRequest request);
+
+  // Doctors APIs
+  // NOTE: this endpoint requires "Authorization: Bearer <token>". If your
+  // DioFactory doesn't already attach the saved token via an interceptor,
+  // add `@Headers(<String, dynamic>{'Authorization': 'Bearer'})` here and
+  // pass `@Header('Authorization') String token` as a parameter instead.
+  @GET(ApiConstants.doctorsList)
+  Future<List<DoctorModel>> getDoctors();
 }

@@ -211,7 +211,7 @@ class CameraImageConverter {
   Uint8List? _bytesForMlKit(CameraImage image) {
     if (Platform.isAndroid &&
         (image.format.group == ImageFormatGroup.nv21 ||
-         image.format.group == ImageFormatGroup.yuv420)) {
+            image.format.group == ImageFormatGroup.yuv420)) {
       final WriteBuffer allBytes = WriteBuffer();
       for (final plane in image.planes) {
         allBytes.putUint8List(plane.bytes);
@@ -219,6 +219,6 @@ class CameraImageConverter {
       return allBytes.done().buffer.asUint8List();
     }
 
-    return image.planes.length >= 1 ? image.planes.first.bytes : null;
+    return image.planes.isNotEmpty ? image.planes.first.bytes : null;
   }
 }

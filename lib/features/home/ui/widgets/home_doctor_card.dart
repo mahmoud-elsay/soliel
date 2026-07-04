@@ -1,13 +1,21 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:soliel/core/theming/colors_manger.dart';
 import 'package:soliel/core/theming/styles.dart';
+import 'package:soliel/features/home/data/models/doctors_model.dart';
 
 class HomeDoctorCard extends StatelessWidget {
-  const HomeDoctorCard({super.key});
+  final DoctorModel doctor;
+
+  const HomeDoctorCard({super.key, required this.doctor});
 
   @override
   Widget build(BuildContext context) {
+    final certificateImageUrl = doctor.certificateImageUrl.isNotEmpty
+        ? doctor.certificateImageUrl
+        : doctor.profileImageUrl;
+
     return Container(
       margin: EdgeInsets.only(left: 12.w),
       decoration: BoxDecoration(
@@ -32,9 +40,17 @@ class HomeDoctorCard extends StatelessWidget {
               // Left column: two stacked image boxes
               Column(
                 children: [
-                  _ImageBox(),
+                  _ImageBox(
+                    imageUrl: certificateImageUrl,
+                    width: 130.w,
+                    height: 67.5.h,
+                  ),
                   SizedBox(height: 8.h),
-                  _ImageBox(),
+                  _ImageBox(
+                    imageUrl: doctor.profileImageUrl,
+                    width: 130.w,
+                    height: 67.5.h,
+                  ),
                 ],
               ),
 
@@ -43,11 +59,10 @@ class HomeDoctorCard extends StatelessWidget {
               // Right: large doctor image
               ClipRRect(
                 borderRadius: BorderRadius.circular(16.r),
-                child: Image.asset(
-                  'assets/images/doctor_container_image.jpg',
+                child: _NetworkOrAssetImage(
+                  imageUrl: doctor.profileImageUrl,
                   width: 160.w,
                   height: 143.h,
-                  fit: BoxFit.cover,
                 ),
               ),
             ],
@@ -57,8 +72,10 @@ class HomeDoctorCard extends StatelessWidget {
 
           // Doctor name below both columns
           Text(
-            'دكتور ياسمين خالد',
+            doctor.fullName,
             textDirection: TextDirection.rtl,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: TextStyles.font17DarkForestSemiBold,
           ),
         ],
@@ -68,16 +85,63 @@ class HomeDoctorCard extends StatelessWidget {
 }
 
 class _ImageBox extends StatelessWidget {
+  final String imageUrl;
+  final double width;
+  final double height;
+
+  const _ImageBox({
+    required this.imageUrl,
+    required this.width,
+    required this.height,
+  });
+
   @override
   Widget build(BuildContext context) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(16.r),
-      child: Image.asset(
-        'assets/images/doctor_container_image.jpg',
-        width: 130.w,
-        height: 67.5.h,
-        fit: BoxFit.cover,
+      child: _NetworkOrAssetImage(
+        imageUrl: imageUrl,
+        width: width,
+        height: height,
       ),
+    );
+  }
+}
+
+class _NetworkOrAssetImage extends StatelessWidget {
+  static const String _fallbackAsset =
+      'assets/images/doctor_container_image.jpg';
+
+  final String imageUrl;
+  final double width;
+  final double height;
+
+  const _NetworkOrAssetImage({
+    required this.imageUrl,
+    required this.width,
+    required this.height,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (imageUrl.isEmpty) return _assetImage();
+
+    return CachedNetworkImage(
+      imageUrl: imageUrl,
+      width: width,
+      height: height,
+      fit: BoxFit.cover,
+      placeholder: (_, __) => SizedBox(width: width, height: height),
+      errorWidget: (_, __, ___) => _assetImage(),
+    );
+  }
+
+  Widget _assetImage() {
+    return Image.asset(
+      _fallbackAsset,
+      width: width,
+      height: height,
+      fit: BoxFit.cover,
     );
   }
 }

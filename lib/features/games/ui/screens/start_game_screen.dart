@@ -21,11 +21,7 @@ class _StartGameScreenState extends State<StartGameScreen> {
     _webViewController = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(Colors.black)
-      ..loadRequest(
-        Uri.parse(
-          'https://6a1feb7c19cf6c2a1455f500--creative-travesseiro-55f452.netlify.app/',
-        ),
-      );
+      ..loadRequest(Uri.parse('https://ayat876.github.io/thegame3334/'));
   }
 
   @override

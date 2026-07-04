@@ -5,6 +5,17 @@ class ApiConstants {
   static const String registerParent = 'Account/register-parent';
   static const String registerDoctor = 'Account/register-doctor';
   static const String eyeScanAnalyze = 'EyeScan/analyze';
+  static const String doctorsList = 'Doctor/list';
+
+  static String doctorImageUrl(String imagePath) {
+    final trimmedPath = imagePath.trim();
+    if (trimmedPath.isEmpty) return '';
+
+    final uri = Uri.tryParse(trimmedPath);
+    if (uri != null && uri.hasScheme) return trimmedPath;
+
+    return Uri.parse(apiBaseUrl).resolve(trimmedPath).toString();
+  }
 }
 
 class ApiErrors {
