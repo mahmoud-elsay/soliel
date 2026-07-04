@@ -10,7 +10,9 @@ import 'package:soliel/features/auth/parent_sign_up/data/repo/parent_sign_up_rep
 import 'package:soliel/features/auth/parent_sign_up/logic/parent_sign_up_cubit/parent_sign_up_cubit.dart';
 import 'package:soliel/features/home/data/repos/doctors_repo.dart';
 import 'package:soliel/features/home/logic/doctors_cubit/doctors_cubit.dart';
+import 'package:soliel/features/test/data/repo/assessment_repo.dart';
 import 'package:soliel/features/test/data/repo/eye_scan_repo.dart';
+import 'package:soliel/features/test/logic/assessment_cubit/assessment_cubit.dart';
 import 'package:soliel/features/test/logic/eye_scan_cubit/eye_scan_cubit.dart';
 
 final GetIt getIt = GetIt.instance;
@@ -48,6 +50,12 @@ Future<void> setupGetIt() async {
     );
   }
 
+  if (!getIt.isRegistered<AssessmentRepo>()) {
+    getIt.registerLazySingleton<AssessmentRepo>(
+      () => AssessmentRepo(getIt<ApiService>()),
+    );
+  }
+
   if (!getIt.isRegistered<DoctorsRepo>()) {
     getIt.registerLazySingleton<DoctorsRepo>(
       () => DoctorsRepo(getIt<ApiService>()),
@@ -73,6 +81,12 @@ Future<void> setupGetIt() async {
   if (!getIt.isRegistered<EyeScanCubit>()) {
     getIt.registerFactory<EyeScanCubit>(
       () => EyeScanCubit(getIt<EyeScanRepo>()),
+    );
+  }
+
+  if (!getIt.isRegistered<AssessmentCubit>()) {
+    getIt.registerFactory<AssessmentCubit>(
+      () => AssessmentCubit(getIt<AssessmentRepo>()),
     );
   }
 

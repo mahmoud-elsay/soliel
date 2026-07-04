@@ -16,6 +16,12 @@ Future<void> main() async {
 }
 
 Future<String> _getInitialRoute() async {
+  final isFirstLaunch = await StorageHelper.isFirstLaunch();
+  if (isFirstLaunch) {
+    await StorageHelper.setNotFirstLaunch();
+    return Routes.splashScreen;
+  }
+
   final accessToken = await StorageHelper.getAccessToken();
 
   if (accessToken == null || accessToken.isEmpty) {

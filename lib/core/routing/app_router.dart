@@ -33,6 +33,7 @@ import 'package:soliel/features/settings/ui/screens/privacy_screen.dart';
 import 'package:soliel/features/settings/ui/screens/settings_screen.dart';
 import 'package:soliel/features/splash/splash_screen.dart';
 import 'package:soliel/features/test/data/models/eye_scan_response.dart';
+import 'package:soliel/features/test/logic/assessment_cubit/assessment_cubit.dart';
 import 'package:soliel/features/test/logic/eye_scan_cubit/eye_scan_cubit.dart';
 import 'package:soliel/features/test/ui/screens/questionnaire_result_screen.dart';
 import 'package:soliel/features/test/ui/screens/questionnaire_screen.dart';
@@ -109,7 +110,12 @@ class AppRouter {
 
       case Routes.questionsScreen:
         final args = settings.arguments as QuestionsArgs;
-        return MaterialPageRoute(builder: (_) => QuestionsScreen(args: args));
+        return MaterialPageRoute(
+          builder: (_) => BlocProvider<AssessmentCubit>(
+            create: (_) => getIt<AssessmentCubit>(),
+            child: QuestionsScreen(args: args),
+          ),
+        );
 
       case Routes.scannerScreen:
         return MaterialPageRoute(
@@ -126,7 +132,10 @@ class AppRouter {
         );
 
       case Routes.startGameScreen:
-        return MaterialPageRoute(builder: (_) => const StartGameScreen());
+        final gameUrl = settings.arguments as String?;
+        return MaterialPageRoute(
+          builder: (_) => StartGameScreen(gameUrl: gameUrl),
+        );
 
       case Routes.settingsScreen:
         return MaterialPageRoute(builder: (_) => const SettingsScreen());
@@ -165,8 +174,11 @@ class AppRouter {
       case Routes.allDoctorsScreen:
         return MaterialPageRoute(builder: (_) => const AllDoctorsScreen());
       case Routes.questionnaireResultScreen:
+        final results = settings.arguments is List<DomainResult>
+            ? settings.arguments as List<DomainResult>
+            : const <DomainResult>[];
         return MaterialPageRoute(
-          builder: (_) => const QuestionnaireResultScreen(),
+          builder: (_) => QuestionnaireResultScreen(results: results),
         );
 
       default:

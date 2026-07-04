@@ -6,6 +6,10 @@ class ApiConstants {
   static const String registerDoctor = 'Account/register-doctor';
   static const String eyeScanAnalyze = 'EyeScan/analyze';
   static const String doctorsList = 'Doctor/list';
+  static const String assessmentFields = 'Assessment/get-all-fields';
+  static const String assessmentQuestionsByField =
+      'Assessment/get-questions-by-field/{fieldId}';
+  static const String submitQuestionnaire = 'Assessment/submit-questionnaire';
 
   static String doctorImageUrl(String imagePath) {
     final trimmedPath = imagePath.trim();

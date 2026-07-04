@@ -42,7 +42,10 @@ class GamesScreen extends StatelessWidget {
                 imagePath: 'assets/images/skills_game_image.jpg',
                 title: 'مجال المهارات والسلوكيات',
                 onTap: () {
-                  context.pushNamed(Routes.startGameScreen);
+                  context.pushNamed(
+                    Routes.startGameScreen,
+                    arguments: 'https://ayat876.github.io/roro/',
+                  );
                 },
               ),
 
@@ -50,7 +53,10 @@ class GamesScreen extends StatelessWidget {
                 imagePath: 'assets/images/interaction_game_image.jpg',
                 title: 'مجال التفاعل الاجتماعي',
                 onTap: () {
-                  context.pushNamed(Routes.startGameScreen);
+                  context.pushNamed(
+                    Routes.startGameScreen,
+                    arguments: 'https://ayat876.github.io/thegame3334/',
+                  );
                 },
               ),
 
@@ -58,7 +64,10 @@ class GamesScreen extends StatelessWidget {
                 imagePath: 'assets/images/communication_game_image.jpg',
                 title: 'مجال التواصل',
                 onTap: () {
-                  context.pushNamed(Routes.startGameScreen);
+                  context.pushNamed(
+                    Routes.startGameScreen,
+                    arguments: 'https://ayat876.github.io/ayat/',
+                  );
                 },
               ),
 

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:soliel/core/helpers/spacing.dart';
+import 'package:soliel/core/helpers/shared_pref_helper.dart';
+import 'package:soliel/core/routing/routes.dart';
 import 'package:soliel/core/theming/colors_manger.dart';
 import 'package:soliel/core/theming/styles.dart';
 
@@ -18,38 +20,88 @@ class DomainResult {
   });
 }
 
-class QuestionnaireResultScreen extends StatelessWidget {
-  /// Results for every domain the parent completed. If empty, demo data is
-  /// shown so the screen still renders on its own while the real scoring
-  /// logic (aggregating the 3 domain quizzes) is wired up.
+class QuestionnaireResultScreen extends StatefulWidget {
+  /// Results for every domain the parent completed. If empty, saved data or
+  /// demo defaults are shown.
   final List<DomainResult> results;
 
   const QuestionnaireResultScreen({super.key, this.results = const []});
 
-  static const List<DomainResult> _demoResults = [
-    DomainResult(
-      title: 'مجال التواصل الاجتماعي',
-      percentage: 0.85,
-      iconAsset: 'assets/svgs/social_result_icon.svg',
-    ),
-    DomainResult(
-      title: 'مجال التفاعل الاجتماعي',
-      percentage: 0.80,
-      iconAsset: 'assets/svgs/interact_result_icon.svg',
-    ),
-    DomainResult(
-      title: 'مجال المهارات والسلوكيات',
-      percentage: 0.30,
-      iconAsset: 'assets/svgs/skills_result.svg',
-    ),
-  ];
+  @override
+  State<QuestionnaireResultScreen> createState() => _QuestionnaireResultScreenState();
+}
+
+class _QuestionnaireResultScreenState extends State<QuestionnaireResultScreen> {
+  List<DomainResult> _allResults = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAndMergeResults();
+  }
+
+  Future<void> _loadAndMergeResults() async {
+    // 1. Get saved scores or use demo defaults
+    double scoreCom = await StorageHelper.getDouble('domain_score_com') ?? 0.85;
+    double scoreInt = await StorageHelper.getDouble('domain_score_int') ?? 0.80;
+    double scoreSki = await StorageHelper.getDouble('domain_score_ski') ?? 0.30;
+
+    // 2. Clear old state and merge with new results if present
+    for (final newResult in widget.results) {
+      final title = newResult.title.replaceAll('\n', ' ');
+      if (title.contains('تواصل')) {
+        scoreCom = newResult.percentage;
+        await StorageHelper.setValue<double>('domain_score_com', scoreCom);
+      } else if (title.contains('تفاعل')) {
+        scoreInt = newResult.percentage;
+        await StorageHelper.setValue<double>('domain_score_int', scoreInt);
+      } else {
+        scoreSki = newResult.percentage;
+        await StorageHelper.setValue<double>('domain_score_ski', scoreSki);
+      }
+    }
+
+    // 3. Update the state list representing all 3 domains
+    if (mounted) {
+      setState(() {
+        _allResults = [
+          DomainResult(
+            title: 'مجال التواصل الاجتماعي',
+            percentage: scoreCom,
+            iconAsset: 'assets/svgs/social_result_icon.svg',
+          ),
+          DomainResult(
+            title: 'مجال التفاعل الاجتماعي',
+            percentage: scoreInt,
+            iconAsset: 'assets/svgs/interact_result_icon.svg',
+          ),
+          DomainResult(
+            title: 'مجال المهارات والسلوكيات',
+            percentage: scoreSki,
+            iconAsset: 'assets/svgs/skills_result.svg',
+          ),
+        ];
+        _isLoading = false;
+      });
+    }
+  }
 
   DomainResult _weakestDomain(List<DomainResult> list) =>
       list.reduce((a, b) => a.percentage <= b.percentage ? a : b);
 
   @override
   Widget build(BuildContext context) {
-    final resultsList = results.isNotEmpty ? results : _demoResults;
+    if (_isLoading) {
+      return const Scaffold(
+        backgroundColor: ColorsManager.white,
+        body: Center(
+          child: CircularProgressIndicator(
+            color: ColorsManager.primaryGradientStart,
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       backgroundColor: ColorsManager.white,
@@ -65,7 +117,7 @@ class QuestionnaireResultScreen extends StatelessWidget {
                 child: Column(
                   children: [
                     verticalSpace(36),
-                    ...resultsList.map(
+                    ..._allResults.map(
                       (result) => Padding(
                         padding: EdgeInsets.only(bottom: 32.h),
                         child: _DomainResultCard(result: result),
@@ -77,7 +129,7 @@ class QuestionnaireResultScreen extends StatelessWidget {
                       style: TextStyles.font18BlackSemiBold,
                     ),
                     verticalSpace(20),
-                    _buildStartGameButton(context, resultsList),
+                    _buildStartGameButton(context, _allResults),
                     verticalSpace(100), // clears bottom nav bar
                   ],
                 ),
@@ -154,8 +206,20 @@ class QuestionnaireResultScreen extends StatelessWidget {
       ),
       child: ElevatedButton(
         onPressed: () {
-          // TODO: navigate to the game tied to `_weakestDomain(list)`
-          // once game routes accept a domain identifier.
+          final weakest = _weakestDomain(list);
+          String gameUrl = 'https://ayat876.github.io/roro/'; // default to skills
+          final normalizedTitle = weakest.title.replaceAll('\n', ' ');
+          if (normalizedTitle.contains('تواصل')) {
+            gameUrl = 'https://ayat876.github.io/ayat/';
+          } else if (normalizedTitle.contains('تفاعل')) {
+            gameUrl = 'https://ayat876.github.io/thegame3334/';
+          }
+
+          Navigator.pushNamed(
+            context,
+            Routes.startGameScreen,
+            arguments: gameUrl,
+          );
         },
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.transparent,
@@ -243,10 +307,10 @@ class _CurvedHeaderClipper extends CustomClipper<Path> {
     final path = Path()
       ..lineTo(0, size.height - edgeDrop)
       ..quadraticBezierTo(
-        size.width / 2,
-        size.height - edgeDrop - curveDepth,
-        size.width,
-        size.height - edgeDrop,
+          size.width / 2,
+          size.height - edgeDrop - curveDepth,
+          size.width,
+          size.height - edgeDrop,
       )
       ..lineTo(size.width, 0)
       ..close();

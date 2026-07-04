@@ -5,7 +5,8 @@ import 'package:soliel/core/theming/colors_manger.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 class StartGameScreen extends StatefulWidget {
-  const StartGameScreen({super.key});
+  final String? gameUrl;
+  const StartGameScreen({super.key, this.gameUrl});
 
   @override
   State<StartGameScreen> createState() => _StartGameScreenState();
@@ -18,10 +19,11 @@ class _StartGameScreenState extends State<StartGameScreen> {
   @override
   void initState() {
     super.initState();
+    final url = widget.gameUrl ?? 'https://ayat876.github.io/thegame3334/';
     _webViewController = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(Colors.black)
-      ..loadRequest(Uri.parse('https://ayat876.github.io/thegame3334/'));
+      ..loadRequest(Uri.parse(url));
   }
 
   @override

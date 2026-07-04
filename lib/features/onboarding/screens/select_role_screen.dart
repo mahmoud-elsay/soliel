@@ -7,6 +7,7 @@ import 'package:soliel/core/helpers/spacing.dart';
 import 'package:soliel/core/routing/routes.dart';
 import 'package:soliel/core/theming/colors_manger.dart';
 import 'package:soliel/core/widgets/app_text_button.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class SelectRoleScreen extends StatelessWidget {
   const SelectRoleScreen({super.key});
@@ -66,8 +67,9 @@ class SelectRoleScreen extends StatelessWidget {
               AppTextButton(
                 onPressed: () async {
                   await AppRoleFactory.saveRole(const WebsiteRole());
-                  if (context.mounted) {
-                    context.pushNamed(Routes.loginScreen);
+                  final uri = Uri.parse('https://knada621.github.io/soleil/');
+                  if (await canLaunchUrl(uri)) {
+                    await launchUrl(uri, mode: LaunchMode.externalApplication);
                   }
                 },
                 textButton: const WebsiteRole().displayNameArabic,

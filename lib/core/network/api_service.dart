@@ -9,8 +9,12 @@ import 'package:soliel/features/auth/login/data/models/login_response_body.dart'
 import 'package:soliel/features/auth/parent_sign_up/data/models/parent_sign_up_request_body.dart';
 import 'package:soliel/features/auth/parent_sign_up/data/models/parent_sign_up_response_body.dart';
 import 'package:soliel/features/home/data/models/doctors_model.dart';
+import 'package:soliel/features/test/data/models/assessment_field_model.dart';
+import 'package:soliel/features/test/data/models/assessment_question_model.dart';
 import 'package:soliel/features/test/data/models/eye_scan_request.dart';
 import 'package:soliel/features/test/data/models/eye_scan_response.dart';
+import 'package:soliel/features/test/data/models/submit_questionnaire_request.dart';
+import 'package:soliel/features/test/data/models/submit_questionnaire_response.dart';
 
 part 'api_service.g.dart';
 
@@ -47,6 +51,19 @@ abstract class ApiService {
 
   @POST(ApiConstants.eyeScanAnalyze)
   Future<EyeScanResponse> analyzeEyeScan(@Body() EyeScanRequest request);
+
+  @GET(ApiConstants.assessmentFields)
+  Future<List<AssessmentFieldModel>> getAssessmentFields();
+
+  @GET(ApiConstants.assessmentQuestionsByField)
+  Future<List<AssessmentQuestionModel>> getAssessmentQuestionsByField(
+    @Path('fieldId') int fieldId,
+  );
+
+  @POST(ApiConstants.submitQuestionnaire)
+  Future<SubmitQuestionnaireResponse> submitQuestionnaire(
+    @Body() SubmitQuestionnaireRequest request,
+  );
 
   // Doctors APIs
   // NOTE: this endpoint requires "Authorization: Bearer <token>". If your
