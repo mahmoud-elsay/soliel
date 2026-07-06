@@ -2,14 +2,41 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:soliel/core/helpers/extensions.dart';
+import 'package:soliel/core/helpers/shared_pref_helper.dart';
 import 'package:soliel/core/helpers/spacing.dart';
 import 'package:soliel/core/routing/routes.dart';
 import 'package:soliel/core/theming/colors_manger.dart';
 import 'package:soliel/core/theming/styles.dart';
 import 'package:soliel/core/widgets/app_gradient_text.dart';
+import 'package:soliel/features/profile/ui/widgets/profile_greeting_row.dart';
 
-class ChildProfileScreen extends StatelessWidget {
+class ChildProfileScreen extends StatefulWidget {
   const ChildProfileScreen({super.key});
+
+  @override
+  State<ChildProfileScreen> createState() => _ChildProfileScreenState();
+}
+
+class _ChildProfileScreenState extends State<ChildProfileScreen> {
+  String _parentName = '';
+  int _childId = 1;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadStoredData();
+  }
+
+  Future<void> _loadStoredData() async {
+    final name = await StorageHelper.getUserName();
+    final childId = await StorageHelper.getChildId();
+    if (mounted) {
+      setState(() {
+        _parentName = name ?? '';
+        _childId = childId;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -24,7 +51,13 @@ class ChildProfileScreen extends StatelessWidget {
                 verticalSpace(20),
                 _buildHeader(context),
                 verticalSpace(30),
-                _buildChildGreetingRow(),
+                ProfileGreetingRow(
+                  name: _parentName.isNotEmpty
+                      ? 'مرحبا! $_parentName'
+                      : null,
+                  subtitle: 'تابع حاله طفلك اليوم',
+                  imagePath: 'assets/images/child_profile_avatar.png',
+                ),
                 verticalSpace(40),
                 _buildCardsGrid(context),
               ],
@@ -74,36 +107,6 @@ class ChildProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildChildGreetingRow() {
-    return Row(
-      children: [
-        CircleAvatar(
-          radius: 26.r,
-          backgroundImage: const AssetImage(
-            'assets/images/child_profile_avatar.png',
-          ),
-        ),
-        horizontalSpace(12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'مرحبا!عمرو محمد...',
-                style: TextStyles.font14BlackSemiBold.copyWith(fontSize: 16.sp),
-              ),
-              verticalSpace(4),
-              Text(
-                'تابع حاله طفلك اليوم',
-                style: TextStyles.font14GreyMedium.copyWith(fontSize: 14.sp),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
   Widget _buildCardsGrid(BuildContext context) {
     return Wrap(
       spacing: 15.w,
@@ -114,7 +117,10 @@ class ChildProfileScreen extends StatelessWidget {
           label: 'النتائج السابقة',
           iconPath: 'assets/svgs/past_results.svg',
           onTap: () {
-            context.pushNamed(Routes.profileResultsScreen);
+            context.pushNamed(
+              Routes.profileResultsScreen,
+              arguments: _childId,
+            );
           },
         ),
         _buildActionCard(
@@ -161,7 +167,7 @@ class ChildProfileScreen extends StatelessWidget {
           borderRadius: BorderRadius.circular(15.r),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),

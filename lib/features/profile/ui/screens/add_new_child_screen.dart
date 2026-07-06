@@ -10,6 +10,7 @@ import 'package:soliel/core/widgets/app_text_form_field.dart';
 import 'package:soliel/features/profile/data/models/add_child_request.dart';
 import 'package:soliel/features/profile/logic/child_cubit/child_cubit.dart';
 import 'package:soliel/features/profile/logic/child_cubit/child_state.dart';
+import 'package:soliel/core/helpers/shared_pref_helper.dart';
 import 'package:soliel/features/profile/ui/widgets/gender_selection.dart';
 import 'package:soliel/features/profile/ui/widgets/profile_app_bar.dart';
 import 'package:soliel/features/profile/ui/widgets/profile_greeting_row.dart';
@@ -26,6 +27,17 @@ class _AddNewChildScreenState extends State<AddNewChildScreen> {
   final TextEditingController nameController = TextEditingController();
   final TextEditingController ageController = TextEditingController();
   Gender selectedGender = Gender.boy;
+  String _parentName = '';
+
+  @override
+  void initState() {
+    super.initState();
+    StorageHelper.getUserName().then((name) {
+      if (mounted && name != null) {
+        setState(() => _parentName = name);
+      }
+    });
+  }
 
   void _submit() {
     if (_formKey.currentState!.validate()) {
@@ -74,7 +86,7 @@ class _AddNewChildScreenState extends State<AddNewChildScreen> {
                 Navigator.pop(context); // dismiss loading
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text(error.message ?? 'حدث خطأ ما'),
+                    content: Text(error.message),
                     backgroundColor: Colors.red,
                   ),
                 );
@@ -91,7 +103,11 @@ class _AddNewChildScreenState extends State<AddNewChildScreen> {
                     verticalSpace(20),
                     const ProfileAppBar(title: 'حساب الطفل'),
                     verticalSpace(30),
-                    const ProfileGreetingRow(),
+                    ProfileGreetingRow(
+                      name: _parentName.isNotEmpty
+                          ? 'مرحبا! $_parentName'
+                          : null,
+                    ),
                     verticalSpace(30),
                     Align(
                       alignment: Alignment.centerRight,

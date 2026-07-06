@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:soliel/core/helpers/extensions.dart';
+import 'package:soliel/core/helpers/shared_pref_helper.dart';
 import 'package:soliel/core/helpers/spacing.dart';
 import 'package:soliel/core/routing/routes.dart';
 import 'package:soliel/core/theming/colors_manger.dart';
@@ -30,8 +31,14 @@ class ProfileScreen extends StatelessWidget {
                         title: 'ولي الامر',
                         backgroundColor: ColorsManager.mainPurple,
                         imagePath: 'assets/images/parent_profile_avatar.png',
-                        onTap: () {
-                          context.pushNamed(Routes.parentProfileScreen);
+                        onTap: () async {
+                          final childId = await StorageHelper.getChildId();
+                          if (context.mounted) {
+                            context.pushNamed(
+                              Routes.parentProfileScreen,
+                              arguments: childId,
+                            );
+                          }
                         },
                       ),
                       verticalSpace(30),
@@ -112,7 +119,7 @@ class ProfileScreen extends StatelessWidget {
                 width: 150.w,
                 height: 150.h,
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.1),
+                  color: Colors.white.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
               ),
@@ -124,7 +131,7 @@ class ProfileScreen extends StatelessWidget {
                 width: 100.w,
                 height: 100.h,
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.1),
+                  color: Colors.white.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
               ),
@@ -136,7 +143,7 @@ class ProfileScreen extends StatelessWidget {
                 width: 20.w,
                 height: 20.h,
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.withValues(alpha: 0.2),
                   shape: BoxShape.circle,
                 ),
               ),
@@ -148,7 +155,7 @@ class ProfileScreen extends StatelessWidget {
                 width: 40.w,
                 height: 40.h,
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.15),
+                  color: Colors.white.withValues(alpha: 0.15),
                   shape: BoxShape.circle,
                 ),
               ),

@@ -200,6 +200,21 @@ class StorageHelper {
 
   static Future<String?> getUserName() => getString(keyUserName);
 
+  // ────────────────────────────────────────────
+  //  Selected child (persisted across screens)
+  // ────────────────────────────────────────────
+
+  static const String keyChildId = 'selected_child_id';
+
+  /// Persists the most-recently used child id so every downstream screen
+  /// can resolve it without requiring a route argument.
+  static Future<void> saveChildId(int childId) => setValue(keyChildId, childId);
+
+  /// Returns the stored child id, or [defaultValue] (1) when none has been
+  /// saved yet.
+  static Future<int> getChildId({int defaultValue = 1}) async =>
+      await getInt(keyChildId) ?? defaultValue;
+
   static Future<void> clearAuthData() async {
     await Future.wait([
       remove(keyUserEmail),

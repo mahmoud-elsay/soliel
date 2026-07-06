@@ -1,4 +1,5 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:soliel/core/helpers/shared_pref_helper.dart';
 import 'package:soliel/features/profile/data/models/add_child_request.dart';
 import 'package:soliel/features/profile/data/repo/child_repo.dart';
 import 'child_state.dart';
@@ -12,7 +13,11 @@ class ChildCubit extends Cubit<ChildState> {
     emit(const ChildState.loading());
     final result = await _childRepo.addChild(request);
     result.when(
-      success: (response) => emit(ChildState.success(response)),
+      success: (response) {
+        // Persist the new child id so every downstream screen can resolve it.
+        StorageHelper.saveChildId(response.childId);
+        emit(ChildState.success(response));
+      },
       failure: (errorHandler) =>
           emit(ChildState.error(error: errorHandler.apiErrorModel)),
     );

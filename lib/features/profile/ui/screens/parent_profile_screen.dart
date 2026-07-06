@@ -29,7 +29,7 @@ class ParentProfileScreen extends StatelessWidget {
               success: (report) => _buildContent(context, report),
               error: (error) => Center(
                 child: Text(
-                  error.message ?? 'فشل تحميل البيانات',
+                  error.message,
                   style: TextStyles.font14GreyMedium,
                 ),
               ),
@@ -57,7 +57,7 @@ class ParentProfileScreen extends StatelessWidget {
             verticalSpace(20),
             const ProfileAppBar(title: 'حساب ولي الامر'),
             verticalSpace(30),
-            const ProfileGreetingRow(),
+            ProfileGreetingRow(name: report.childName),
             verticalSpace(30),
             _buildChildTrackingSection(context, report, avgProgress),
             verticalSpace(30),
