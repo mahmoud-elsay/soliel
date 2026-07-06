@@ -69,7 +69,7 @@ class DomainReminderCard extends StatelessWidget {
               ),
               verticalSpace(4),
               Text(
-                'تاريخ $date الساعه $time',
+                time.isNotEmpty ? 'تاريخ $date الساعه $time' : 'تاريخ $date',
                 style: TextStyles.font14GreyMedium.copyWith(
                   fontSize: 14.sp,
                   color: const Color(0xFF6A707C),

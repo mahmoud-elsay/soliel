@@ -75,7 +75,7 @@ class SettingsScreen extends StatelessWidget {
       {
         'title': 'اداره الطفل',
         'icon': 'assets/svgs/manage_baby_icon.svg',
-        'route': null,
+        'route': Routes.childProfileScreen,
       },
       {
         'title': 'سياسه الخصوصيه وشروط الاحكام',
@@ -90,12 +90,12 @@ class SettingsScreen extends StatelessWidget {
       {
         'title': 'تواصل معانا',
         'icon': 'assets/svgs/chat_icon.svg',
-        'route': null,
+        'route': Routes.contactUsScreen,
       },
       {
         'title': 'عن التطبيق',
         'icon': 'assets/svgs/about_app.svg',
-        'route': null,
+        'route': Routes.aboutUsScreen,
       },
     ];
 

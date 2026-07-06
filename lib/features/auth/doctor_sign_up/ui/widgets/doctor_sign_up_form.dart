@@ -37,6 +37,7 @@ class _DoctorSignUpFormState extends State<DoctorSignUpForm> {
   final TextEditingController _workingHoursController = TextEditingController();
 
   File? _graduationCertificate;
+  File? _profileImage;
   bool _isObscureText = true;
   bool _isConfirmObscureText = true;
 
@@ -84,6 +85,16 @@ class _DoctorSignUpFormState extends State<DoctorSignUpForm> {
       return;
     }
 
+    final profileImage = _profileImage;
+    if (profileImage == null) {
+      CustomSnackBar.show(
+        context,
+        message: 'الصورة الشخصية مطلوبة',
+        state: SnackBarState.error,
+      );
+      return;
+    }
+
     final certificateImage = _graduationCertificate;
     if (certificateImage == null) {
       CustomSnackBar.show(
@@ -108,6 +119,7 @@ class _DoctorSignUpFormState extends State<DoctorSignUpForm> {
       education: _educationController.text.trim(),
       workingHours: _workingHoursController.text.trim(),
       certificateImage: certificateImage,
+      profileImage: profileImage,
     );
   }
 
@@ -248,6 +260,15 @@ class _DoctorSignUpFormState extends State<DoctorSignUpForm> {
                 _validateRequired(value, 'مواعيد العمل مطلوبة'),
           ),
           verticalSpace(24),
+          UploadImageContainer(
+            title: 'ارفع صورة شخصية',
+            onImageSelected: (file) {
+              setState(() {
+                _profileImage = file;
+              });
+            },
+          ),
+          verticalSpace(16),
           UploadImageContainer(
             title: 'ارفع صورة شهادة التخرج',
             onImageSelected: (file) {

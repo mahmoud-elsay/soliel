@@ -33,34 +33,56 @@ class ProfileResultsScreen extends StatelessWidget {
                 ),
               ),
               success: (report) {
+                final hasEyeScan = report.eyeScan != null;
+                final hasQuestionnaire =
+                    report.questionnaire != null && report.questionnaire!.isNotEmpty;
+
+                if (!hasEyeScan && !hasQuestionnaire) {
+                  return _buildShell(
+                    greeting: ProfileGreetingRow(name: report.childName),
+                    body: Center(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(vertical: 40.h),
+                        child: Text(
+                          'لا توجد نتائج سابقة حتى الآن',
+                          style: TextStyles.font14GreyMedium,
+                        ),
+                      ),
+                    ),
+                  );
+                }
+
                 final dateStr = report.lastUpdated.length >= 10
                     ? report.lastUpdated.substring(0, 10)
                     : report.lastUpdated;
-                final eyeDate = report.eyeScan.date.length >= 10
-                    ? report.eyeScan.date.substring(0, 10)
-                    : report.eyeScan.date;
+
+                final eyeDate = (hasEyeScan && report.eyeScan!.date.length >= 10)
+                    ? report.eyeScan!.date.substring(0, 10)
+                    : (report.eyeScan?.date ?? '');
 
                 return _buildShell(
                   greeting: ProfileGreetingRow(name: report.childName),
                   body: Column(
                     children: [
                       // Eye scan card
-                      ResultCard(
-                        title: 'فحص العين',
-                        date: eyeDate,
-                        percentage:
-                            '${(report.eyeScan.asdProbability * 100).toStringAsFixed(1)}%',
-                        imagePath: 'assets/images/profile_results.png',
-                      ),
-                      // One card per questionnaire domain
-                      ...report.questionnaire.map(
-                        (q) => ResultCard(
-                          title: q.fieldName,
-                          date: dateStr,
-                          percentage: '${q.score.toStringAsFixed(0)}%',
+                      if (hasEyeScan)
+                        ResultCard(
+                          title: 'فحص العين',
+                          date: eyeDate,
+                          percentage:
+                              '${(report.eyeScan!.asdProbability * 100).toStringAsFixed(1)}%',
                           imagePath: 'assets/images/profile_results.png',
                         ),
-                      ),
+                      // One card per questionnaire domain
+                      if (hasQuestionnaire)
+                        ...report.questionnaire!.map(
+                          (q) => ResultCard(
+                            title: q.fieldName,
+                            date: dateStr,
+                            percentage: '${q.score.toStringAsFixed(0)}%',
+                            imagePath: 'assets/images/profile_results.png',
+                          ),
+                        ),
                     ],
                   ),
                 );

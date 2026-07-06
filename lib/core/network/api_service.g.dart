@@ -92,6 +92,7 @@ class _ApiService implements ApiService {
     String education,
     String workingHours,
     File certificateImage,
+    File profileImage,
   ) async {
     final _extra = <String, dynamic>{};
     final queryParameters = <String, dynamic>{};
@@ -115,6 +116,15 @@ class _ApiService implements ApiService {
         MultipartFile.fromFileSync(
           certificateImage.path,
           filename: certificateImage.path.split(Platform.pathSeparator).last,
+        ),
+      ),
+    );
+    _data.files.add(
+      MapEntry(
+        'ProfileImage',
+        MultipartFile.fromFileSync(
+          profileImage.path,
+          filename: profileImage.path.split(Platform.pathSeparator).last,
         ),
       ),
     );

@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:curved_navigation_bar/curved_navigation_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -62,9 +63,15 @@ class _ParentLayoutState extends State<ParentLayout> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      extendBody: true,
-      body: IndexedStack(index: selectedIndex, children: screens),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        SystemNavigator.pop();
+      },
+      child: Scaffold(
+        extendBody: true,
+        body: IndexedStack(index: selectedIndex, children: screens),
       bottomNavigationBar: Stack(
         clipBehavior: Clip.none,
         children: [
@@ -105,6 +112,7 @@ class _ParentLayoutState extends State<ParentLayout> {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 }

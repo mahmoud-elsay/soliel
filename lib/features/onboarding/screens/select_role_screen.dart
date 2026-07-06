@@ -7,6 +7,7 @@ import 'package:soliel/core/helpers/spacing.dart';
 import 'package:soliel/core/routing/routes.dart';
 import 'package:soliel/core/theming/colors_manger.dart';
 import 'package:soliel/core/widgets/app_text_button.dart';
+import 'package:soliel/core/widgets/custom_snack_bar.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class SelectRoleScreen extends StatelessWidget {
@@ -70,6 +71,14 @@ class SelectRoleScreen extends StatelessWidget {
                   final uri = Uri.parse('https://knada621.github.io/soleil/');
                   if (await canLaunchUrl(uri)) {
                     await launchUrl(uri, mode: LaunchMode.externalApplication);
+                  } else {
+                    if (context.mounted) {
+                      CustomSnackBar.show(
+                        context,
+                        message: 'تعذر فتح الموقع الإلكتروني',
+                        state: SnackBarState.error,
+                      );
+                    }
                   }
                 },
                 textButton: const WebsiteRole().displayNameArabic,

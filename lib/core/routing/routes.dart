@@ -34,4 +34,6 @@ class Routes {
   static const String editParentDataScreen = "editParentDataScreen";
   static const String allDoctorsScreen = "allDoctorsScreen";
   static const String questionnaireResultScreen = "questionnaireResultScreen";
+  static const String aboutUsScreen = "aboutUsScreen";
+  static const String contactUsScreen = "contactUsScreen";
 }

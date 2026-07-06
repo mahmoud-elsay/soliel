@@ -8,17 +8,17 @@ part 'latest_report_response.g.dart';
 class LatestReportResponse {
   final String childName;
   final String lastUpdated;
-  final EyeScanReportModel eyeScan;
-  final List<QuestionnaireFieldResultModel> questionnaire;
-  final String weakestField;
+  final EyeScanReportModel? eyeScan;
+  final List<QuestionnaireFieldResultModel>? questionnaire;
+  final String? weakestField;
   final String? suggestedGame;
 
   const LatestReportResponse({
     required this.childName,
     required this.lastUpdated,
-    required this.eyeScan,
-    required this.questionnaire,
-    required this.weakestField,
+    this.eyeScan,
+    this.questionnaire,
+    this.weakestField,
     this.suggestedGame,
   });
 

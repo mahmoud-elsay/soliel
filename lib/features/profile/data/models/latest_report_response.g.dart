@@ -11,14 +11,16 @@ LatestReportResponse _$LatestReportResponseFromJson(
 ) => LatestReportResponse(
   childName: json['childName'] as String,
   lastUpdated: json['lastUpdated'] as String,
-  eyeScan: EyeScanReportModel.fromJson(json['eyeScan'] as Map<String, dynamic>),
-  questionnaire: (json['questionnaire'] as List<dynamic>)
-      .map(
+  eyeScan: json['eyeScan'] == null
+      ? null
+      : EyeScanReportModel.fromJson(json['eyeScan'] as Map<String, dynamic>),
+  questionnaire: (json['questionnaire'] as List<dynamic>?)
+      ?.map(
         (e) =>
             QuestionnaireFieldResultModel.fromJson(e as Map<String, dynamic>),
       )
       .toList(),
-  weakestField: json['weakestField'] as String,
+  weakestField: json['weakestField'] as String?,
   suggestedGame: json['suggestedGame'] as String?,
 );
 

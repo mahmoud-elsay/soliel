@@ -30,6 +30,8 @@ import 'package:soliel/features/profile/ui/screens/reminder_screen.dart';
 import 'package:soliel/features/settings/ui/screens/change_password_screen.dart';
 import 'package:soliel/features/settings/ui/screens/notifications_Screen.dart';
 import 'package:soliel/features/settings/ui/screens/privacy_screen.dart';
+import 'package:soliel/features/settings/ui/screens/about_us_screen.dart';
+import 'package:soliel/features/settings/ui/screens/contact_us_screen.dart';
 import 'package:soliel/features/settings/ui/screens/settings_screen.dart';
 import 'package:soliel/features/splash/splash_screen.dart';
 import 'package:soliel/features/test/data/models/eye_scan_response.dart';
@@ -177,7 +179,13 @@ class AppRouter {
         );
 
       case Routes.reminderScreen:
-        return MaterialPageRoute(builder: (_) => const ReminderScreen());
+        final childId = settings.arguments as int? ?? 1;
+        return MaterialPageRoute(
+          builder: (_) => BlocProvider<ProgressCubit>(
+            create: (_) => getIt<ProgressCubit>()..getLatestReport(childId),
+            child: const ReminderScreen(),
+          ),
+        );
 
       case Routes.parentProfileScreen:
         final childId = settings.arguments as int? ?? 1;
@@ -200,6 +208,12 @@ class AppRouter {
         return MaterialPageRoute(
           builder: (_) => QuestionnaireResultScreen(results: results),
         );
+
+      case Routes.aboutUsScreen:
+        return MaterialPageRoute(builder: (_) => const AboutUsScreen());
+
+      case Routes.contactUsScreen:
+        return MaterialPageRoute(builder: (_) => const ContactUsScreen());
 
       default:
         return MaterialPageRoute(

@@ -25,6 +25,7 @@ class DoctorSignUpCubit extends Cubit<DoctorSignUpState> {
     required String education,
     required String workingHours,
     required File certificateImage,
+    required File profileImage,
   }) async {
     emit(const DoctorSignUpState.loading());
 
@@ -43,6 +44,7 @@ class DoctorSignUpCubit extends Cubit<DoctorSignUpState> {
         education: education,
         workingHours: workingHours,
         certificateImage: certificateImage,
+        profileImage: profileImage,
       ),
     );
 

@@ -32,6 +32,8 @@ class DoctorSignUpRequestBody {
   final String workingHours;
   @JsonKey(includeToJson: false)
   final File certificateImage;
+  @JsonKey(includeToJson: false)
+  final File profileImage;
 
   const DoctorSignUpRequestBody({
     required this.firstName,
@@ -47,6 +49,7 @@ class DoctorSignUpRequestBody {
     required this.education,
     required this.workingHours,
     required this.certificateImage,
+    required this.profileImage,
   });
 
   Map<String, dynamic> toJson() => _$DoctorSignUpRequestBodyToJson(this);

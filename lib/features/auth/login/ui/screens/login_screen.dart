@@ -79,87 +79,102 @@ class _LoginScreenState extends State<LoginScreen> {
           },
         );
       },
-      child: Scaffold(
-        backgroundColor: ColorsManager.white,
-        appBar: AppBar(
+      child: PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, result) {
+          if (didPop) return;
+          if (Navigator.canPop(context)) {
+            Navigator.pop(context);
+          } else {
+            context.pushReplacementNamed(Routes.selectRoleScreen);
+          }
+        },
+        child: Scaffold(
           backgroundColor: ColorsManager.white,
-          elevation: 0,
-          leading: IconButton(
-            icon: Icon(
-              Icons.arrow_forward_ios,
-              color: ColorsManager.primaryGradientStart,
+          appBar: AppBar(
+            backgroundColor: ColorsManager.white,
+            elevation: 0,
+            leading: IconButton(
+              icon: Icon(
+                Icons.arrow_forward_ios,
+                color: ColorsManager.primaryGradientStart,
+              ),
+              onPressed: () {
+                if (Navigator.canPop(context)) {
+                  Navigator.pop(context);
+                } else {
+                  context.pushReplacementNamed(Routes.selectRoleScreen);
+                }
+              },
             ),
-            onPressed: () {
-              Navigator.pop(context);
-            },
           ),
-        ),
-        body: SafeArea(
-          child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: 24.w),
-            child: Column(
-              children: [
-                Expanded(
-                  child: SingleChildScrollView(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        verticalSpace(20),
+          body: SafeArea(
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: 24.w),
+              child: Column(
+                children: [
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          verticalSpace(20),
 
-                        AppGradientText(
-                          gradient: ColorsManager.primaryGradient,
-                          child: Text(
-                            'مرحبا بك! مره ثانيه....',
-                            style: TextStyles.font30GradientBold,
-                            textAlign: TextAlign.right,
+                          AppGradientText(
+                            gradient: ColorsManager.primaryGradient,
+                            child: Text(
+                              'مرحبا بك! مره ثانيه....',
+                              style: TextStyles.font30GradientBold,
+                              textAlign: TextAlign.right,
+                            ),
                           ),
-                        ),
 
-                        verticalSpace(80),
+                          verticalSpace(80),
 
-                        const LoginForm(),
+                          const LoginForm(),
 
-                        verticalSpace(40),
+                          verticalSpace(40),
 
-                        const OrDivider(),
+                          const OrDivider(),
 
-                        verticalSpace(32),
+                          verticalSpace(32),
 
-                        const SocialMediaButtons(),
+                          const SocialMediaButtons(),
 
-                        verticalSpace(24),
-                      ],
+                          verticalSpace(24),
+                        ],
+                      ),
                     ),
                   ),
-                ),
 
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      'ليس لديك حساب؟ ',
-                      style: TextStyles.font15DarkBlueBold,
-                    ),
-                    TextButton(
-                      onPressed: _openSignUpForSelectedRole,
-                      style: TextButton.styleFrom(
-                        padding: EdgeInsets.zero,
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'ليس لديك حساب؟ ',
+                        style: TextStyles.font15DarkBlueBold,
                       ),
-                      child: AppGradientText(
-                        gradient: ColorsManager.primaryGradient,
-                        child: Text(
-                          'سجل الآن',
-                          style: TextStyles.font15GradientBold,
+                      TextButton(
+                        onPressed: _openSignUpForSelectedRole,
+                        style: TextButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        child: AppGradientText(
+                          gradient: ColorsManager.primaryGradient,
+                          child: Text(
+                            'سجل الآن',
+                            style: TextStyles.font15GradientBold,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
+                    ],
+                  ),
 
-                verticalSpace(24),
-              ],
+                  verticalSpace(24),
+                ],
+              ),
             ),
           ),
         ),

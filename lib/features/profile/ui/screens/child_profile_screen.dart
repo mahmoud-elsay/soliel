@@ -128,7 +128,10 @@ class _ChildProfileScreenState extends State<ChildProfileScreen> {
           label: 'التذكير بالتمارين',
           iconPath: 'assets/svgs/reminder.svg',
           onTap: () {
-            context.pushNamed(Routes.reminderScreen);
+            context.pushNamed(
+              Routes.reminderScreen,
+              arguments: _childId,
+            );
           },
         ),
         _buildActionCard(

@@ -27,6 +27,7 @@ class DoctorSignUpRepo {
         doctorSignUpRequestBody.education,
         doctorSignUpRequestBody.workingHours,
         doctorSignUpRequestBody.certificateImage,
+        doctorSignUpRequestBody.profileImage,
       );
       return ApiResult.success(response);
     } catch (error) {

@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:soliel/core/helpers/extensions.dart';
@@ -16,20 +17,30 @@ class DoctorProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: ColorsManager.solidLightBlue,
-      appBar: AppBar(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        SystemNavigator.pop();
+      },
+      child: Scaffold(
         backgroundColor: ColorsManager.solidLightBlue,
-        elevation: 0,
-        centerTitle: true,
-        title: Text('حساب الدكتور', style: TextStyles.font18BlackSemiBold),
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios, color: ColorsManager.black),
-          onPressed: () {
-            Navigator.pop(context);
-          },
+        appBar: AppBar(
+          backgroundColor: ColorsManager.solidLightBlue,
+          elevation: 0,
+          centerTitle: true,
+          title: Text('حساب الدكتور', style: TextStyles.font18BlackSemiBold),
+          leading: IconButton(
+            icon: Icon(Icons.arrow_back_ios, color: ColorsManager.black),
+            onPressed: () {
+              if (Navigator.canPop(context)) {
+                Navigator.pop(context);
+              } else {
+                SystemNavigator.pop();
+              }
+            },
+          ),
         ),
-      ),
       body: SingleChildScrollView(
         padding: EdgeInsets.all(16.w),
         child: Column(
@@ -92,6 +103,7 @@ class DoctorProfileScreen extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

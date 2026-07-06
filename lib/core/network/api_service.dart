@@ -50,6 +50,7 @@ abstract class ApiService {
     @Part(name: 'Education') String education,
     @Part(name: 'WorkingHours') String workingHours,
     @Part(name: 'CertificateImage') File certificateImage,
+    @Part(name: 'ProfileImage') File profileImage,
   );
 
   @POST(ApiConstants.eyeScanAnalyze)

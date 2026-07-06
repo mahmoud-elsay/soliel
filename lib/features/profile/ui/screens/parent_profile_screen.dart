@@ -28,10 +28,7 @@ class ParentProfileScreen extends StatelessWidget {
               loading: () => const Center(child: CircularProgressIndicator()),
               success: (report) => _buildContent(context, report),
               error: (error) => Center(
-                child: Text(
-                  error.message,
-                  style: TextStyles.font14GreyMedium,
-                ),
+                child: Text(error.message, style: TextStyles.font14GreyMedium),
               ),
             );
           },
@@ -41,11 +38,13 @@ class ParentProfileScreen extends StatelessWidget {
   }
 
   Widget _buildContent(BuildContext context, LatestReportResponse report) {
+    final hasQuestionnaire =
+        report.questionnaire != null && report.questionnaire!.isNotEmpty;
     // Average questionnaire score across all domains
-    final double avgScore = report.questionnaire.isEmpty
+    final double avgScore = !hasQuestionnaire
         ? 0.0
-        : report.questionnaire.map((q) => q.score).reduce((a, b) => a + b) /
-              report.questionnaire.length;
+        : report.questionnaire!.map((q) => q.score).reduce((a, b) => a + b) /
+              report.questionnaire!.length;
     final double avgProgress = (avgScore / 100.0).clamp(0.0, 1.0);
 
     return SingleChildScrollView(
@@ -192,8 +191,18 @@ class ParentProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildDomainsGauges(List<QuestionnaireFieldResultModel> domains) {
-    if (domains.isEmpty) return const SizedBox.shrink();
+  Widget _buildDomainsGauges(List<QuestionnaireFieldResultModel>? domains) {
+    if (domains == null || domains.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: 20.h),
+          child: Text(
+            'لا توجد نتائج استبيان حتى الآن',
+            style: TextStyles.font14GreyMedium,
+          ),
+        ),
+      );
+    }
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: domains.map((domain) {
@@ -242,6 +251,7 @@ class ParentProfileScreen extends StatelessWidget {
   }
 
   Widget _buildSuggestedGameCard(LatestReportResponse report) {
+    final String? weakest = report.weakestField;
     // Map weakest field to a game label and description
     final Map<String, Map<String, String>> gameMap = {
       'التفاعل الاجتماعي': {
@@ -259,7 +269,7 @@ class ParentProfileScreen extends StatelessWidget {
     };
 
     final game =
-        gameMap[report.weakestField] ??
+        (weakest != null ? gameMap[weakest] : null) ??
         {
           'title': 'لعبة التفاعل',
           'desc': 'بتتحفز الطفل علي معرفه لغه التفاعل مع الأشخاص الاخرين',

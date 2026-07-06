@@ -65,24 +65,35 @@ class _ParentSignUpScreenState extends State<ParentSignUpScreen> {
           },
         );
       },
-      child: Scaffold(
-        backgroundColor: ColorsManager.white,
-        appBar: AppBar(
+      child: PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, result) {
+          if (didPop) return;
+          if (Navigator.canPop(context)) {
+            Navigator.pop(context);
+          } else {
+            context.pushReplacementNamed(Routes.selectRoleScreen);
+          }
+        },
+        child: Scaffold(
           backgroundColor: ColorsManager.white,
-          elevation: 0,
-          automaticallyImplyLeading: false,
-          actions: [
-            IconButton(
+          appBar: AppBar(
+            backgroundColor: ColorsManager.white,
+            elevation: 0,
+            leading: IconButton(
               icon: Icon(
                 Icons.arrow_forward_ios,
                 color: ColorsManager.primaryGradientStart,
               ),
               onPressed: () {
-                Navigator.pop(context);
+                if (Navigator.canPop(context)) {
+                  Navigator.pop(context);
+                } else {
+                  context.pushReplacementNamed(Routes.selectRoleScreen);
+                }
               },
             ),
-          ],
-        ),
+          ),
         body: SafeArea(
           child: Padding(
             padding: EdgeInsets.symmetric(horizontal: 24.w),
@@ -141,6 +152,7 @@ class _ParentSignUpScreenState extends State<ParentSignUpScreen> {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }
