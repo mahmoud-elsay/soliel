@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:soliel/core/helpers/extensions.dart';
 import 'package:soliel/core/helpers/spacing.dart';
 import 'package:soliel/core/routing/routes.dart';
 import 'package:soliel/core/theming/colors_manger.dart';
 import 'package:soliel/core/theming/styles.dart';
+import 'package:soliel/features/profile/data/models/latest_report_response.dart';
+import 'package:soliel/features/profile/data/models/questionnaire_field_result_model.dart';
+import 'package:soliel/features/profile/logic/progress_cubit/progress_cubit.dart';
+import 'package:soliel/features/profile/logic/progress_cubit/progress_state.dart';
 import 'package:soliel/features/profile/ui/widgets/profile_app_bar.dart';
 import 'package:soliel/features/profile/ui/widgets/profile_greeting_row.dart';
 
@@ -16,48 +21,77 @@ class ParentProfileScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: ColorsManager.white,
       body: SafeArea(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: 20.w),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                verticalSpace(20),
-                const ProfileAppBar(title: 'حساب ولي الامر'),
-                verticalSpace(30),
-                const ProfileGreetingRow(),
-                verticalSpace(30),
-                _buildChildTrackingSection(context),
-                verticalSpace(30),
-                Text(
-                  'مستوي طفلك في مجالات مختلفه',
-                  style: TextStyles.font16BlackSemiBold.copyWith(
-                    fontSize: 18.sp,
-                    color: Colors.black,
-                  ),
+        child: BlocBuilder<ProgressCubit, ProgressState>(
+          builder: (context, state) {
+            return state.when(
+              initial: () => const SizedBox.shrink(),
+              loading: () => const Center(child: CircularProgressIndicator()),
+              success: (report) => _buildContent(context, report),
+              error: (error) => Center(
+                child: Text(
+                  error.message ?? 'فشل تحميل البيانات',
+                  style: TextStyles.font14GreyMedium,
                 ),
-                verticalSpace(20),
-                _buildDomainsGauges(),
-                verticalSpace(30),
-                Text(
-                  'الالعاب المقترحه لطفلك',
-                  style: TextStyles.font16BlackSemiBold.copyWith(
-                    fontSize: 18.sp,
-                    color: Colors.black,
-                  ),
-                ),
-                verticalSpace(20),
-                _buildSuggestedGameCard(),
-                verticalSpace(30),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         ),
       ),
     );
   }
 
-  Widget _buildChildTrackingSection(BuildContext context) {
+  Widget _buildContent(BuildContext context, LatestReportResponse report) {
+    // Average questionnaire score across all domains
+    final double avgScore = report.questionnaire.isEmpty
+        ? 0.0
+        : report.questionnaire.map((q) => q.score).reduce((a, b) => a + b) /
+              report.questionnaire.length;
+    final double avgProgress = (avgScore / 100.0).clamp(0.0, 1.0);
+
+    return SingleChildScrollView(
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: 20.w),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            verticalSpace(20),
+            const ProfileAppBar(title: 'حساب ولي الامر'),
+            verticalSpace(30),
+            const ProfileGreetingRow(),
+            verticalSpace(30),
+            _buildChildTrackingSection(context, report, avgProgress),
+            verticalSpace(30),
+            Text(
+              'مستوي طفلك في مجالات مختلفه',
+              style: TextStyles.font16BlackSemiBold.copyWith(
+                fontSize: 18.sp,
+                color: Colors.black,
+              ),
+            ),
+            verticalSpace(20),
+            _buildDomainsGauges(report.questionnaire),
+            verticalSpace(30),
+            Text(
+              'الالعاب المقترحه لطفلك',
+              style: TextStyles.font16BlackSemiBold.copyWith(
+                fontSize: 18.sp,
+                color: Colors.black,
+              ),
+            ),
+            verticalSpace(20),
+            _buildSuggestedGameCard(report),
+            verticalSpace(30),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildChildTrackingSection(
+    BuildContext context,
+    LatestReportResponse report,
+    double avgProgress,
+  ) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
@@ -80,7 +114,7 @@ class ParentProfileScreen extends StatelessWidget {
                       borderRadius: BorderRadius.circular(8.r),
                     ),
                     child: Text(
-                      '68%',
+                      '${(avgProgress * 100).toInt()}%',
                       style: TextStyles.font14BlackSemiBold.copyWith(
                         color: const Color(0xFF1E4F89),
                       ),
@@ -90,7 +124,7 @@ class ParentProfileScreen extends StatelessWidget {
               ),
               verticalSpace(8),
               Text(
-                'Aseel\nAmr',
+                report.childName,
                 textAlign: TextAlign.end,
                 style: TextStyles.font20BlackSemiBold.copyWith(
                   fontSize: 22.sp,
@@ -100,7 +134,7 @@ class ParentProfileScreen extends StatelessWidget {
               GestureDetector(
                 onTap: () => context.pushNamed(Routes.editParentDataScreen),
                 child: Text(
-                  'Edit paren’s details',
+                  'Edit parent\'s details',
                   style: TextStyles.font14GreyMedium.copyWith(
                     decoration: TextDecoration.underline,
                   ),
@@ -117,7 +151,7 @@ class ParentProfileScreen extends StatelessWidget {
               width: 120.r,
               height: 120.r,
               child: CircularProgressIndicator(
-                value: 0.68,
+                value: avgProgress,
                 strokeWidth: 6,
                 backgroundColor: const Color(0xFFE8ECF4),
                 valueColor: const AlwaysStoppedAnimation<Color>(
@@ -158,14 +192,17 @@ class ParentProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildDomainsGauges() {
+  Widget _buildDomainsGauges(List<QuestionnaireFieldResultModel> domains) {
+    if (domains.isEmpty) return const SizedBox.shrink();
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: [
-        _buildGauge('التفاعل', 0.68, Colors.red),
-        _buildGauge('التواصل', 0.68, Colors.orange),
-        _buildGauge('المهارات', 0.68, Colors.green),
-      ],
+      children: domains.map((domain) {
+        final double progress = (domain.score / 100.0).clamp(0.0, 1.0);
+        final Color color = domain.status == 'يحتاج متابعة'
+            ? Colors.deepOrange
+            : Colors.green;
+        return _buildGauge(domain.fieldName, progress, color);
+      }).toList(),
     );
   }
 
@@ -189,7 +226,8 @@ class ParentProfileScreen extends StatelessWidget {
               children: [
                 Text(
                   label,
-                  style: TextStyles.font12GreyMedium.copyWith(fontSize: 14.sp),
+                  style: TextStyles.font12GreyMedium.copyWith(fontSize: 10.sp),
+                  textAlign: TextAlign.center,
                 ),
                 Text(
                   '${(progress * 100).toInt()}%',
@@ -203,7 +241,30 @@ class ParentProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildSuggestedGameCard() {
+  Widget _buildSuggestedGameCard(LatestReportResponse report) {
+    // Map weakest field to a game label and description
+    final Map<String, Map<String, String>> gameMap = {
+      'التفاعل الاجتماعي': {
+        'title': 'لعبة التفاعل',
+        'desc': 'بتتحفز الطفل علي معرفه لغه التفاعل مع الأشخاص الاخرين',
+      },
+      'التواصل': {
+        'title': 'لعبة التواصل',
+        'desc': 'تساعد الطفل على تطوير مهارات التواصل والتعبير عن نفسه',
+      },
+      'المهارات والسلوكيات': {
+        'title': 'لعبة المهارات',
+        'desc': 'تعزز المهارات السلوكية والحركية لدى الطفل',
+      },
+    };
+
+    final game =
+        gameMap[report.weakestField] ??
+        {
+          'title': 'لعبة التفاعل',
+          'desc': 'بتتحفز الطفل علي معرفه لغه التفاعل مع الأشخاص الاخرين',
+        };
+
     return Container(
       padding: EdgeInsets.all(16.w),
       decoration: BoxDecoration(
@@ -238,9 +299,9 @@ class ParentProfileScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text('لعبة التفاعل', style: TextStyles.font16BlackSemiBold),
+                Text(game['title']!, style: TextStyles.font16BlackSemiBold),
                 Text(
-                  'بتتحفز الطفل علي معرفه لغه التفاعل مع الأشخاص الاخرين',
+                  game['desc']!,
                   textAlign: TextAlign.end,
                   style: TextStyles.font12GreyMedium.copyWith(fontSize: 13.sp),
                 ),
@@ -259,7 +320,7 @@ class ParentProfileScreen extends StatelessWidget {
             ),
             child: Center(
               child: Image.asset(
-                'assets/images/profile_results.png', // Reusing placeholder icon or similar
+                'assets/images/profile_results.png',
                 width: 50.r,
                 height: 50.r,
               ),

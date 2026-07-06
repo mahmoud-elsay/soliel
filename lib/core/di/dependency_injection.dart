@@ -14,6 +14,10 @@ import 'package:soliel/features/test/data/repo/assessment_repo.dart';
 import 'package:soliel/features/test/data/repo/eye_scan_repo.dart';
 import 'package:soliel/features/test/logic/assessment_cubit/assessment_cubit.dart';
 import 'package:soliel/features/test/logic/eye_scan_cubit/eye_scan_cubit.dart';
+import 'package:soliel/features/profile/data/repo/child_repo.dart';
+import 'package:soliel/features/profile/data/repo/progress_repo.dart';
+import 'package:soliel/features/profile/logic/child_cubit/child_cubit.dart';
+import 'package:soliel/features/profile/logic/progress_cubit/progress_cubit.dart';
 
 final GetIt getIt = GetIt.instance;
 
@@ -93,6 +97,30 @@ Future<void> setupGetIt() async {
   if (!getIt.isRegistered<DoctorsCubit>()) {
     getIt.registerFactory<DoctorsCubit>(
       () => DoctorsCubit(getIt<DoctorsRepo>()),
+    );
+  }
+
+  if (!getIt.isRegistered<ChildRepo>()) {
+    getIt.registerLazySingleton<ChildRepo>(
+      () => ChildRepo(getIt<ApiService>()),
+    );
+  }
+
+  if (!getIt.isRegistered<ProgressRepo>()) {
+    getIt.registerLazySingleton<ProgressRepo>(
+      () => ProgressRepo(getIt<ApiService>()),
+    );
+  }
+
+  if (!getIt.isRegistered<ChildCubit>()) {
+    getIt.registerFactory<ChildCubit>(
+      () => ChildCubit(getIt<ChildRepo>()),
+    );
+  }
+
+  if (!getIt.isRegistered<ProgressCubit>()) {
+    getIt.registerFactory<ProgressCubit>(
+      () => ProgressCubit(getIt<ProgressRepo>()),
     );
   }
 }

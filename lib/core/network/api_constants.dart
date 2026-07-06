@@ -10,6 +10,8 @@ class ApiConstants {
   static const String assessmentQuestionsByField =
       'Assessment/get-questions-by-field/{fieldId}';
   static const String submitQuestionnaire = 'Assessment/submit-questionnaire';
+  static const String addChild = 'Child/add';
+  static const String latestReport = 'Progress/child/{childId}/latest-report';
 
   static String doctorImageUrl(String imagePath) {
     final trimmedPath = imagePath.trim();

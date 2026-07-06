@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:soliel/core/helpers/spacing.dart';
 import 'package:soliel/core/theming/colors_manger.dart';
 import 'package:soliel/core/theming/styles.dart';
+import 'package:soliel/features/profile/logic/progress_cubit/progress_cubit.dart';
+import 'package:soliel/features/profile/logic/progress_cubit/progress_state.dart';
 import 'package:soliel/features/profile/ui/widgets/profile_app_bar.dart';
 import 'package:soliel/features/profile/ui/widgets/profile_greeting_row.dart';
 import 'package:soliel/features/profile/ui/widgets/result_card.dart';
@@ -36,17 +39,50 @@ class ProfileResultsScreen extends StatelessWidget {
                   ),
                 ),
                 verticalSpace(20),
-                // Results List
-                ListView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: 3,
-                  itemBuilder: (context, index) {
-                    return const ResultCard(
-                      title: 'فحص شامل',
-                      date: '12/12',
-                      percentage: '68%',
-                      imagePath: 'assets/images/profile_results.png',
+                BlocBuilder<ProgressCubit, ProgressState>(
+                  builder: (context, state) {
+                    return state.when(
+                      initial: () => const SizedBox.shrink(),
+                      loading: () =>
+                          const Center(child: CircularProgressIndicator()),
+                      error: (error) => Center(
+                        child: Text(
+                          error.message ?? 'فشل تحميل النتائج',
+                          style: TextStyles.font14GreyMedium,
+                        ),
+                      ),
+                      success: (report) {
+                        final dateStr = report.lastUpdated.length >= 10
+                            ? report.lastUpdated.substring(0, 10)
+                            : report.lastUpdated;
+                        final eyeDate = report.eyeScan.date.length >= 10
+                            ? report.eyeScan.date.substring(0, 10)
+                            : report.eyeScan.date;
+
+                        return Column(
+                          children: [
+                            // Eye scan card
+                            ResultCard(
+                              title: 'فحص العين',
+                              date: eyeDate,
+                              percentage:
+                                  '${(report.eyeScan.asdProbability * 100).toStringAsFixed(1)}%',
+                              imagePath: 'assets/images/profile_results.png',
+                            ),
+                            // One card per questionnaire domain
+                            ...report.questionnaire.map(
+                              (q) => ResultCard(
+                                title: q.fieldName,
+                                date: dateStr,
+                                percentage:
+                                    '${q.score.toStringAsFixed(0)}%',
+                                imagePath:
+                                    'assets/images/profile_results.png',
+                              ),
+                            ),
+                          ],
+                        );
+                      },
                     );
                   },
                 ),

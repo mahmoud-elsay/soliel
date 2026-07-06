@@ -35,6 +35,8 @@ import 'package:soliel/features/splash/splash_screen.dart';
 import 'package:soliel/features/test/data/models/eye_scan_response.dart';
 import 'package:soliel/features/test/logic/assessment_cubit/assessment_cubit.dart';
 import 'package:soliel/features/test/logic/eye_scan_cubit/eye_scan_cubit.dart';
+import 'package:soliel/features/profile/logic/child_cubit/child_cubit.dart';
+import 'package:soliel/features/profile/logic/progress_cubit/progress_cubit.dart';
 import 'package:soliel/features/test/ui/screens/questionnaire_result_screen.dart';
 import 'package:soliel/features/test/ui/screens/questionnaire_screen.dart';
 import 'package:soliel/features/test/ui/screens/questions_screen.dart';
@@ -153,20 +155,38 @@ class AppRouter {
         return MaterialPageRoute(builder: (_) => const ChildProfileScreen());
 
       case Routes.addNewChildScreen:
-        return MaterialPageRoute(builder: (_) => const AddNewChildScreen());
+        return MaterialPageRoute(
+          builder: (_) => BlocProvider<ChildCubit>(
+            create: (_) => getIt<ChildCubit>(),
+            child: const AddNewChildScreen(),
+          ),
+        );
       case Routes.editChildProfileScreen:
         return MaterialPageRoute(
           builder: (_) => const EditChildProfileScreen(),
         );
 
       case Routes.profileResultsScreen:
-        return MaterialPageRoute(builder: (_) => const ProfileResultsScreen());
+        final resultChildId = settings.arguments as int? ?? 1;
+        return MaterialPageRoute(
+          builder: (_) => BlocProvider<ProgressCubit>(
+            create: (_) =>
+                getIt<ProgressCubit>()..getLatestReport(resultChildId),
+            child: const ProfileResultsScreen(),
+          ),
+        );
 
       case Routes.reminderScreen:
         return MaterialPageRoute(builder: (_) => const ReminderScreen());
 
       case Routes.parentProfileScreen:
-        return MaterialPageRoute(builder: (_) => const ParentProfileScreen());
+        final childId = settings.arguments as int? ?? 1;
+        return MaterialPageRoute(
+          builder: (_) => BlocProvider<ProgressCubit>(
+            create: (_) => getIt<ProgressCubit>()..getLatestReport(childId),
+            child: const ParentProfileScreen(),
+          ),
+        );
 
       case Routes.editParentDataScreen:
         return MaterialPageRoute(builder: (_) => const EditParentDataScreen());

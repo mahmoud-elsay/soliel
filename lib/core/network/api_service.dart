@@ -15,6 +15,9 @@ import 'package:soliel/features/test/data/models/eye_scan_request.dart';
 import 'package:soliel/features/test/data/models/eye_scan_response.dart';
 import 'package:soliel/features/test/data/models/submit_questionnaire_request.dart';
 import 'package:soliel/features/test/data/models/submit_questionnaire_response.dart';
+import 'package:soliel/features/profile/data/models/add_child_request.dart';
+import 'package:soliel/features/profile/data/models/add_child_response.dart';
+import 'package:soliel/features/profile/data/models/latest_report_response.dart';
 
 part 'api_service.g.dart';
 
@@ -72,4 +75,14 @@ abstract class ApiService {
   // pass `@Header('Authorization') String token` as a parameter instead.
   @GET(ApiConstants.doctorsList)
   Future<List<DoctorModel>> getDoctors();
+
+  @POST(ApiConstants.addChild)
+  Future<AddChildResponse> addChild(
+    @Body() AddChildRequest request,
+  );
+
+  @GET(ApiConstants.latestReport)
+  Future<LatestReportResponse> getLatestReport(
+    @Path('childId') int childId,
+  );
 }
