@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:soliel/core/helpers/extensions.dart';
+import 'package:soliel/core/helpers/shared_pref_helper.dart';
 import 'package:soliel/core/routing/routes.dart';
 import 'package:soliel/core/theming/colors_manger.dart';
 import 'package:soliel/core/theming/styles.dart';
@@ -20,8 +21,18 @@ class SettingsScreen extends StatelessWidget {
             children: [
               SizedBox(height: 20.h),
               _buildHeader(context),
-              SizedBox(height: 40.h),
-              _buildSettingsList(context),
+              SizedBox(height: 30.h),
+              Expanded(
+                child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  child: Column(
+                    children: [
+                      _buildSettingsList(context),
+                      SizedBox(height: 24.h),
+                    ],
+                  ),
+                ),
+              ),
             ],
           ),
         ),
@@ -33,7 +44,7 @@ class SettingsScreen extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        const SizedBox(width: 44), // To balance the back button
+        const SizedBox(width: 44),
         Text(
           'الإعدادات',
           style: TextStyles.font20PrimaryGradientStartSemiBold.copyWith(
@@ -97,6 +108,11 @@ class SettingsScreen extends StatelessWidget {
         'icon': 'assets/svgs/about_app.svg',
         'route': Routes.aboutUsScreen,
       },
+      {
+        'title': 'تسجيل الخروج',
+        'icon': 'assets/svgs/profile_icon.svg',
+        'route': 'logout',
+      },
     ];
 
     return Column(
@@ -123,8 +139,16 @@ class SettingsScreen extends StatelessWidget {
     String? route,
   ) {
     return GestureDetector(
-      onTap: () {
-        if (route != null) {
+      onTap: () async {
+        if (route == 'logout') {
+          await StorageHelper.clearAuthData();
+          if (context.mounted) {
+            context.pushNamedAndRemoveUntil(
+              Routes.selectRoleScreen,
+              predicate: (route) => false,
+            );
+          }
+        } else if (route != null) {
           context.pushNamed(route);
         }
       },

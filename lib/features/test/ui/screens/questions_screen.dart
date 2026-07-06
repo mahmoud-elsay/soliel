@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:soliel/core/helpers/shared_pref_helper.dart';
 import 'package:soliel/core/helpers/spacing.dart';
 import 'package:soliel/core/routing/routes.dart';
 import 'package:soliel/core/theming/colors_manger.dart';
@@ -50,10 +51,12 @@ class _QuestionsScreenState extends State<QuestionsScreen> {
   List<AssessmentQuestionModel> _questions = [];
   List<AssessmentFieldModel> _fields = [];
   bool _submitLoadingVisible = false;
+  int _childId = 1;
 
   @override
   void initState() {
     super.initState();
+    _loadChildId();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final fieldId = widget.args.fieldId;
       if (fieldId != null) {
@@ -62,6 +65,10 @@ class _QuestionsScreenState extends State<QuestionsScreen> {
         context.read<AssessmentCubit>().getAssessmentFields();
       }
     });
+  }
+
+  Future<void> _loadChildId() async {
+    _childId = await StorageHelper.getChildId();
   }
 
   @override
@@ -273,7 +280,7 @@ class _QuestionsScreenState extends State<QuestionsScreen> {
     }).toList();
 
     context.read<AssessmentCubit>().submitQuestionnaire(
-      childId: widget.args.childId,
+      childId: _childId,
       answers: answers,
     );
   }

@@ -1,10 +1,12 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:soliel/core/helpers/shared_pref_helper.dart';
 import 'package:soliel/core/routing/routes.dart';
 import 'package:soliel/core/theming/styles.dart';
 import 'package:soliel/core/widgets/app_loading_indicator.dart';
@@ -53,14 +55,16 @@ class ScannerScreen extends StatefulWidget {
 
 class _ScannerScreenState extends State<ScannerScreen>
     with SingleTickerProviderStateMixin {
-  static const int _sessionSeconds = 12;
-  static const int _childId = 1;
+  static const int _sessionSeconds = 30;
   static const String _notes = '';
 
   late final VisionLogger _logger;
   late final VisionCameraService _cameraService;
   late final VisionScanSession _visionSession;
   late final AnimationController _stimulusController;
+
+  // Resolved asynchronously from SharedPreferences
+  int _childId = 1;
 
   VisionState _visionState = VisionState.initial();
   bool _isRecording = false;
@@ -85,7 +89,12 @@ class _ScannerScreenState extends State<ScannerScreen>
       vsync: this,
       duration: const Duration(seconds: _sessionSeconds),
     );
-    unawaited(_initCamera());
+    unawaited(_loadChildIdAndInit());
+  }
+
+  Future<void> _loadChildIdAndInit() async {
+    _childId = await StorageHelper.getChildId();
+    await _initCamera();
   }
 
   @override
@@ -224,16 +233,19 @@ class _ScannerScreenState extends State<ScannerScreen>
     return ((nowMs - startMs) / (_sessionSeconds * 1000)).clamp(0.0, 1.0);
   }
 
+  /// Submit unconditionally after the session ends — even if data quality is
+  /// below the preferred threshold. The backend will handle poor-quality data.
   void _submit() {
     final validation = _visionSession.validatePayload(
       childId: _childId,
       notes: _notes,
     );
 
-    if (!validation.isValid) {
+    // Always send whatever was collected; only block if truly zero points.
+    if (validation.scanPath.isEmpty) {
       CustomSnackBar.show(
         context,
-        message: validation.issues.take(3).join('\n'),
+        message: 'لم يتم التقاط أي بيانات. حاول مرة أخرى في إضاءة أفضل.',
         state: SnackBarState.warning,
       );
       return;
@@ -295,34 +307,71 @@ class _ScannerScreenState extends State<ScannerScreen>
         );
 
         return Scaffold(
-          backgroundColor: const Color(0xFF1A1A1A),
+          backgroundColor: const Color(0xFF0D1117),
           body: SafeArea(
             child: Column(
               children: [
-                Align(
-                  alignment: Alignment.topRight,
-                  child: IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: Icon(Icons.close, color: Colors.white, size: 30.r),
+                // ── Top bar ──────────────────────────────────────────
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        icon: Icon(
+                          Icons.close,
+                          color: Colors.white70,
+                          size: 26.r,
+                        ),
+                      ),
+                      Text(
+                        'فحص تتبع العين',
+                        style: TextStyles.font24GradientExtraBold.copyWith(
+                          color: Colors.white,
+                          fontSize: 20.sp,
+                        ),
+                      ),
+                      SizedBox(width: 48.w),
+                    ],
                   ),
                 ),
-                SizedBox(height: 10.h),
-                Text(
-                  'فحص تتبع العين',
-                  style: TextStyles.font24GradientExtraBold.copyWith(
-                    color: Colors.white,
-                    fontSize: 28.sp,
+
+                // ── Instructions (idle only) ─────────────────────────
+                if (!_isRecording && !_recordingDone)
+                  Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 24.w,
+                      vertical: 6.h,
+                    ),
+                    child: Text(
+                      'ضع وجه الطفل في الإطار ثم اضغط ابدأ الفحص.\nسيتحرك هدف أصفر — اطلب من الطفل متابعته بعينيه.',
+                      style: TextStyle(
+                        color: Colors.white60,
+                        fontSize: 13.sp,
+                        height: 1.5,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
                   ),
-                ),
-                SizedBox(height: 8.h),
+
+                // ── Status banner ────────────────────────────────────
                 _buildStatusBanner(),
-                SizedBox(height: 15.h),
+                SizedBox(height: 12.h),
+
+                // ── Camera + progress ring ──────────────────────────
                 _buildScanningArea(),
-                const Spacer(),
+
+                SizedBox(height: 16.h),
+
+                // ── Stats ───────────────────────────────────────────
                 if (_isRecording || _recordingDone) _buildStatsRow(),
+
                 const Spacer(),
+
+                // ── Action button ────────────────────────────────────
                 _buildPrimaryButton(isSubmitting),
-                SizedBox(height: 40.h),
+                SizedBox(height: 36.h),
               ],
             ),
           ),
@@ -393,93 +442,203 @@ class _ScannerScreenState extends State<ScannerScreen>
 
   Widget _buildScanningArea() {
     final previewContentSize = _cameraService.previewContentSize();
+    final borderColor = _isRecording && !_visionState.faceVisible
+        ? Colors.redAccent
+        : _isRecording
+        ? Colors.greenAccent.withValues(alpha: 0.8)
+        : Colors.blueAccent.withValues(alpha: 0.5);
 
-    return Container(
-      width: 340.w,
-      height: 280.h,
-      decoration: BoxDecoration(
-        color: Colors.black,
-        borderRadius: BorderRadius.circular(24.r),
-        border: Border.all(
-          color: _isRecording && !_visionState.faceVisible
-              ? Colors.redAccent
-              : Colors.blueAccent.withValues(alpha: 0.6),
-          width: 3,
-        ),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(21.r),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            if (_camera?.value.isInitialized == true)
-              if (previewContentSize != null)
-                Center(
-                  child: FittedBox(
-                    fit: BoxFit.cover,
-                    child: SizedBox(
-                      width: previewContentSize.width,
-                      height: previewContentSize.height,
-                      child: Stack(
-                        fit: StackFit.expand,
-                        children: [
-                          CameraPreview(_camera!),
-                          if (_isRecording)
-                            IgnorePointer(
-                              child: AnimatedBuilder(
-                                animation: _stimulusController,
-                                builder: (context, _) => CustomPaint(
-                                  painter: StimulusTargetPainter(
-                                    progress: _stimulusController.value,
+    // Ring progress: counts down from 1.0 → 0.0
+    final ringProgress = _isRecording
+        ? _secondsLeft / _sessionSeconds
+        : _recordingDone
+        ? 0.0
+        : 1.0;
+
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        // Circular countdown ring
+        if (_isRecording)
+          SizedBox(
+            width: 356.w,
+            height: 296.h,
+            child: CustomPaint(
+              painter: _CountdownRingPainter(
+                progress: ringProgress,
+                color: _visionState.faceVisible
+                    ? Colors.greenAccent
+                    : Colors.redAccent,
+              ),
+            ),
+          ),
+        Container(
+          width: 340.w,
+          height: 280.h,
+          decoration: BoxDecoration(
+            color: Colors.black,
+            borderRadius: BorderRadius.circular(24.r),
+            border: Border.all(color: borderColor, width: 2.5),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(21.r),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                if (_camera?.value.isInitialized == true)
+                  if (previewContentSize != null)
+                    Center(
+                      child: FittedBox(
+                        fit: BoxFit.cover,
+                        child: SizedBox(
+                          width: previewContentSize.width,
+                          height: previewContentSize.height,
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              CameraPreview(_camera!),
+                              if (_isRecording)
+                                IgnorePointer(
+                                  child: AnimatedBuilder(
+                                    animation: _stimulusController,
+                                    builder: (context, _) => CustomPaint(
+                                      painter: StimulusTargetPainter(
+                                        progress: _stimulusController.value,
+                                      ),
+                                    ),
                                   ),
                                 ),
-                              ),
+                              if (_isRecording)
+                                IgnorePointer(
+                                  child: VisionDebugOverlay(
+                                    state: _visionState,
+                                    show: _showDebugOverlay,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    )
+                  else
+                    CameraPreview(_camera!)
+                else
+                  const Center(child: CircularProgressIndicator()),
+
+                // Idle overlay
+                if (!_isRecording && !_recordingDone)
+                  Container(
+                    color: Colors.black.withValues(alpha: 0.45),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.face_retouching_natural,
+                          color: Colors.white30,
+                          size: 80.r,
+                        ),
+                        SizedBox(height: 12.h),
+                        Text(
+                          'ضع الوجه هنا',
+                          style: TextStyle(
+                            color: Colors.white38,
+                            fontSize: 14.sp,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                // Countdown badge top-left
+                if (_isRecording)
+                  Positioned(
+                    top: 10,
+                    left: 12,
+                    child: Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 10.w,
+                        vertical: 4.h,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.black54,
+                        borderRadius: BorderRadius.circular(20.r),
+                      ),
+                      child: Text(
+                        '$_secondsLeft s',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 15.sp,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                // Face indicator badge top-right
+                if (_isRecording)
+                  Positioned(
+                    top: 10,
+                    right: 12,
+                    child: Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 8.w,
+                        vertical: 4.h,
+                      ),
+                      decoration: BoxDecoration(
+                        color: _visionState.faceVisible
+                            ? Colors.greenAccent.withValues(alpha: 0.25)
+                            : Colors.redAccent.withValues(alpha: 0.25),
+                        borderRadius: BorderRadius.circular(20.r),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            _visionState.faceVisible
+                                ? Icons.face
+                                : Icons.no_photography_outlined,
+                            color: _visionState.faceVisible
+                                ? Colors.greenAccent
+                                : Colors.redAccent,
+                            size: 14.r,
+                          ),
+                          SizedBox(width: 4.w),
+                          Text(
+                            _visionState.faceVisible ? 'وجه مكتشف' : 'لا وجه',
+                            style: TextStyle(
+                              color: _visionState.faceVisible
+                                  ? Colors.greenAccent
+                                  : Colors.redAccent,
+                              fontSize: 11.sp,
                             ),
-                          if (_isRecording)
-                            IgnorePointer(
-                              child: VisionDebugOverlay(
-                                state: _visionState,
-                                show: _showDebugOverlay,
-                              ),
-                            ),
+                          ),
                         ],
                       ),
                     ),
                   ),
-                )
-              else
-                CameraPreview(_camera!)
-            else
-              const Center(child: CircularProgressIndicator()),
-            if (!_isRecording && !_recordingDone)
-              Container(
-                color: Colors.black.withValues(alpha: 0.4),
-                child: const Center(
-                  child: Icon(
-                    Icons.face_retouching_natural,
-                    color: Colors.white38,
-                    size: 90,
+
+                if (kDebugMode)
+                  Positioned(
+                    right: 8,
+                    bottom: 8,
+                    child: IconButton.filledTonal(
+                      tooltip: 'Debug overlay',
+                      onPressed: () {
+                        setState(() => _showDebugOverlay = !_showDebugOverlay);
+                      },
+                      icon: Icon(
+                        _showDebugOverlay
+                            ? Icons.visibility
+                            : Icons.visibility_off,
+                        size: 16,
+                      ),
+                    ),
                   ),
-                ),
-              ),
-            if (kDebugMode)
-              Positioned(
-                right: 8,
-                bottom: 8,
-                child: IconButton.filledTonal(
-                  tooltip: 'Debug overlay',
-                  onPressed: () {
-                    setState(() => _showDebugOverlay = !_showDebugOverlay);
-                  },
-                  icon: Icon(
-                    _showDebugOverlay ? Icons.visibility : Icons.visibility_off,
-                    size: 18,
-                  ),
-                ),
-              ),
-          ],
+              ],
+            ),
+          ),
         ),
-      ),
+      ],
     );
   }
 
@@ -523,33 +682,31 @@ class _ScannerScreenState extends State<ScannerScreen>
     }
 
     if (_recordingDone) {
-      final canSubmit = _visionState.readyForUpload;
-      final canRetry = !canSubmit || _visionState.trackingScore < 0.45;
-
+      // Always show Send — the quality gate was removed.
       return Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (canSubmit)
-            ElevatedButton(
-              onPressed: _submit,
-              style: _buttonStyle(Colors.green),
-              child: Text(
-                'إرسال للتحليل',
-                style: TextStyles.font16WhiteSemiBold,
-              ),
+          ElevatedButton.icon(
+            onPressed: _submit,
+            style: _buttonStyle(const Color(0xFF2ECC71)),
+            icon: const Icon(Icons.send_rounded, size: 20),
+            label: Text('إرسال للتحليل', style: TextStyles.font16WhiteSemiBold),
+          ),
+          SizedBox(height: 10.h),
+          TextButton.icon(
+            onPressed: _retryRecording,
+            icon: Icon(
+              Icons.refresh_rounded,
+              color: Colors.white60,
+              size: 18.r,
             ),
-          if (canSubmit && canRetry) SizedBox(height: 10.h),
-          if (canRetry)
-            ElevatedButton(
-              onPressed: _retryRecording,
-              style: _buttonStyle(Colors.orangeAccent),
-              child: Text(
-                _retryCount > 0
-                    ? 'إعادة الفحص (${_retryCount + 1})'
-                    : 'إعادة الفحص',
-                style: TextStyles.font16WhiteSemiBold,
-              ),
+            label: Text(
+              _retryCount > 0
+                  ? 'إعادة الفحص (${_retryCount + 1})'
+                  : 'إعادة الفحص بإضاءة أفضل',
+              style: TextStyle(color: Colors.white60, fontSize: 14.sp),
             ),
+          ),
         ],
       );
     }
@@ -605,6 +762,36 @@ class _ScannerScreenState extends State<ScannerScreen>
       ),
     );
   }
+}
+
+// ─── Countdown ring painter ──────────────────────────────────────────────────
+class _CountdownRingPainter extends CustomPainter {
+  final double progress; // 1.0 → full, 0.0 → empty
+  final Color color;
+
+  const _CountdownRingPainter({required this.progress, required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Rect.fromLTWH(4, 4, size.width - 8, size.height - 8);
+    final bgPaint = Paint()
+      ..color = Colors.white10
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 4
+      ..strokeCap = StrokeCap.round;
+    final fgPaint = Paint()
+      ..color = color.withValues(alpha: 0.85)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 4
+      ..strokeCap = StrokeCap.round;
+
+    canvas.drawOval(rect, bgPaint);
+    canvas.drawArc(rect, -math.pi / 2, 2 * math.pi * progress, false, fgPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _CountdownRingPainter old) =>
+      old.progress != progress || old.color != color;
 }
 
 class StimulusTargetPainter extends CustomPainter {

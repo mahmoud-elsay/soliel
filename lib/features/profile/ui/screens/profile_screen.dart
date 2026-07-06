@@ -64,31 +64,35 @@ class ProfileScreen extends StatelessWidget {
   }
 
   Widget _buildHeader(BuildContext context) {
+    final canPop = Navigator.canPop(context);
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        GestureDetector(
-          onTap: () => context.pop(),
-          child: Container(
-            padding: EdgeInsets.all(12.w),
-            decoration: BoxDecoration(
-              border: Border.all(color: ColorsManager.greyBorderColor),
-              borderRadius: BorderRadius.circular(12.r),
+        if (canPop)
+          GestureDetector(
+            onTap: () => context.pop(),
+            child: Container(
+              padding: EdgeInsets.all(12.w),
+              decoration: BoxDecoration(
+                border: Border.all(color: ColorsManager.greyBorderColor),
+                borderRadius: BorderRadius.circular(12.r),
+              ),
+              child: Icon(
+                Icons.arrow_forward_ios,
+                size: 20.sp,
+                color: ColorsManager.primaryGradientStart,
+              ),
             ),
-            child: Icon(
-              Icons.arrow_forward_ios,
-              size: 20.sp,
-              color: ColorsManager.primaryGradientStart,
-            ),
-          ),
-        ),
+          )
+        else
+          SizedBox(width: 44.w),
         Text(
           'الحساب الشخصي',
           style: TextStyles.font20BlackSemiBold.copyWith(
             color: const Color(0xFF1E232C),
           ),
         ),
-        const SizedBox(width: 44), // To balance the back button
+        SizedBox(width: 44.w), // To balance the back button
       ],
     );
   }
