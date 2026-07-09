@@ -94,65 +94,65 @@ class _DoctorSignUpScreenState extends State<DoctorSignUpScreen> {
               },
             ),
           ),
-        body: SafeArea(
-          child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: 24.w),
-            child: Column(
-              children: [
-                Expanded(
-                  child: SingleChildScrollView(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        verticalSpace(20),
-                        AppGradientText(
-                          gradient: ColorsManager.primaryGradient,
-                          child: Text(
-                            'مرحبا، سجل الآن للبدء',
-                            style: TextStyles.font30GradientBold,
-                            textAlign: TextAlign.start,
+          body: SafeArea(
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: 24.w),
+              child: Column(
+                children: [
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          verticalSpace(20),
+                          AppGradientText(
+                            gradient: ColorsManager.primaryGradient,
+                            child: Text(
+                              'مرحبا، سجل الآن للبدء',
+                              style: TextStyles.font30GradientBold,
+                              textAlign: TextAlign.start,
+                            ),
                           ),
-                        ),
-                        verticalSpace(40),
-                        const DoctorSignUpForm(),
-                        verticalSpace(24),
-                      ],
+                          verticalSpace(40),
+                          const DoctorSignUpForm(),
+                          verticalSpace(24),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      'بالفعل لديك اكونت؟ ',
-                      style: TextStyles.font14BlackRegular,
-                    ),
-                    TextButton(
-                      onPressed: () {
-                        context.pushReplacementNamed(Routes.loginScreen);
-                      },
-                      style: TextButton.styleFrom(
-                        padding: EdgeInsets.zero,
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'بالفعل لديك اكونت؟ ',
+                        style: TextStyles.font14BlackRegular,
                       ),
-                      child: AppGradientText(
-                        gradient: ColorsManager.primaryGradient,
-                        child: Text(
-                          'سجل الدخول',
-                          style: TextStyles.font14GradientMedium,
+                      TextButton(
+                        onPressed: () {
+                          context.pushReplacementNamed(Routes.loginScreen);
+                        },
+                        style: TextButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        child: AppGradientText(
+                          gradient: ColorsManager.primaryGradient,
+                          child: Text(
+                            'سجل الدخول',
+                            style: TextStyles.font14GradientMedium,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-                verticalSpace(24),
-              ],
+                    ],
+                  ),
+                  verticalSpace(24),
+                ],
+              ),
             ),
           ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 }

@@ -141,13 +141,59 @@ class SettingsScreen extends StatelessWidget {
     return GestureDetector(
       onTap: () async {
         if (route == 'logout') {
-          await StorageHelper.clearAuthData();
-          if (context.mounted) {
-            context.pushNamedAndRemoveUntil(
-              Routes.selectRoleScreen,
-              predicate: (route) => false,
-            );
-          }
+          showDialog(
+            context: context,
+            builder: (BuildContext context) {
+              return AlertDialog(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16.r),
+                ),
+                title: Text(
+                  'تسجيل الخروج',
+                  style: TextStyles.font18RobotoBlackSemiBold,
+                  textAlign: TextAlign.right,
+                ),
+                content: Text(
+                  'هل أنت متأكد من رغبتك في تسجيل الخروج؟',
+                  style: TextStyles.font14RobotoGreySemiBold,
+                  textAlign: TextAlign.right,
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: Text(
+                      'إلغاء',
+                      style: TextStyle(
+                        color: ColorsManager.greyBorderColor,
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () async {
+                      Navigator.pop(context); // Close the dialog
+                      await StorageHelper.clearAuthData();
+                      if (context.mounted) {
+                        context.pushNamedAndRemoveUntil(
+                          Routes.selectRoleScreen,
+                          predicate: (route) => false,
+                        );
+                      }
+                    },
+                    child: Text(
+                      'خروج',
+                      style: TextStyle(
+                        color: Colors.redAccent,
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
+          );
         } else if (route != null) {
           context.pushNamed(route);
         }

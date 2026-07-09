@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:soliel/core/helpers/shared_pref_helper.dart';
 import 'package:soliel/core/helpers/spacing.dart';
 import 'package:soliel/core/theming/colors_manger.dart';
 import 'package:soliel/core/theming/styles.dart';
@@ -20,6 +21,19 @@ class ProfileGreetingRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (name != null) {
+      return _buildRow(name!);
+    }
+    return ValueListenableBuilder<String>(
+      valueListenable: StorageHelper.userNameNotifier,
+      builder: (context, userName, _) {
+        final displayName = userName.isNotEmpty ? userName : 'عمرو محمد...';
+        return _buildRow('مرحبا! $displayName');
+      },
+    );
+  }
+
+  Widget _buildRow(String displayName) {
     return Row(
       children: [
         CircleAvatar(
@@ -34,7 +48,7 @@ class ProfileGreetingRow extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                name ?? 'مرحبا!عمرو محمد...',
+                displayName,
                 style: TextStyles.font14BlackSemiBold.copyWith(
                   fontSize: 16.sp,
                   color: textColor ?? ColorsManager.black,

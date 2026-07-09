@@ -19,6 +19,14 @@ import 'package:soliel/features/test/ui/vision/debug/logger.dart';
 import 'package:soliel/features/test/ui/vision/models/vision_state.dart';
 import 'package:soliel/features/test/ui/vision/processing/vision_scan_session.dart';
 
+// Timing for the calibration phase (mirrors the reference script's
+// "hold for ~2s per point" flow, split into a settle window that's ignored
+// and a sampling window that's averaged for robustness).
+const int _calibrationSettleMs = 500;
+const int _calibrationSampleMs = 1300;
+const int _calibrationPointDurationMs =
+    _calibrationSettleMs + _calibrationSampleMs;
+
 const List<Offset> _stimulusWaypoints = [
   Offset(0.50, 0.50),
   Offset(0.18, 0.22),
@@ -45,6 +53,19 @@ Offset _stimulusPointAt(double progress) {
     localProgress,
   )!;
 }
+
+// 3x3 grid, same layout as the reference calibration script.
+const List<Offset> _calibrationPoints = [
+  Offset(0.12, 0.14),
+  Offset(0.50, 0.14),
+  Offset(0.88, 0.14),
+  Offset(0.12, 0.50),
+  Offset(0.50, 0.50),
+  Offset(0.88, 0.50),
+  Offset(0.12, 0.86),
+  Offset(0.50, 0.86),
+  Offset(0.88, 0.86),
+];
 
 class ScannerScreen extends StatefulWidget {
   const ScannerScreen({super.key});
@@ -77,6 +98,15 @@ class _ScannerScreenState extends State<ScannerScreen>
   int? _recordingStartMs;
   Timer? _timer;
 
+  // ── Calibration phase state ──────────────────────────────────────────
+  bool _isCalibrating = false;
+  bool _calibrationDone = false;
+  int _calibrationIndex = 0;
+  int _calibrationElapsedMs = 0;
+  int? _calibrationPointStartMs;
+  final List<Offset> _calibrationRawSamples = [];
+  Timer? _calibrationTicker;
+
   CameraController? get _camera => _cameraService.controller;
 
   @override
@@ -100,6 +130,7 @@ class _ScannerScreenState extends State<ScannerScreen>
   @override
   void dispose() {
     _timer?.cancel();
+    _calibrationTicker?.cancel();
     _isRecording = false;
     unawaited(_cameraService.dispose());
     unawaited(_visionSession.dispose());
@@ -203,7 +234,7 @@ class _ScannerScreenState extends State<ScannerScreen>
   }
 
   Future<void> _onFrame(CameraImage image) async {
-    if (_isHandlingFrame || !_isRecording) return;
+    if (_isHandlingFrame || (!_isRecording && !_isCalibrating)) return;
     _isHandlingFrame = true;
 
     try {
@@ -211,6 +242,12 @@ class _ScannerScreenState extends State<ScannerScreen>
       if (camera == null) return;
 
       final now = DateTime.now().millisecondsSinceEpoch;
+
+      if (_isCalibrating) {
+        await _handleCalibrationFrame(image, camera, now);
+        return;
+      }
+
       final state = await _visionSession.processFrame(
         image: image,
         camera: camera.description,
@@ -223,6 +260,130 @@ class _ScannerScreenState extends State<ScannerScreen>
       setState(() => _visionState = state);
     } finally {
       _isHandlingFrame = false;
+    }
+  }
+
+  // ── Calibration flow ─────────────────────────────────────────────────
+
+  Future<void> _startCalibration() async {
+    if (_camera == null || _camera?.value.isInitialized != true) {
+      await _initCamera();
+    }
+
+    final camera = _camera;
+    if (camera == null || !camera.value.isInitialized || !mounted) return;
+
+    _visionSession.calibrator.reset();
+    _visionSession.resetCalibrationHistory();
+    _calibrationRawSamples.clear();
+    _calibrationPointStartMs = DateTime.now().millisecondsSinceEpoch;
+
+    setState(() {
+      _isCalibrating = true;
+      _calibrationDone = false;
+      _calibrationIndex = 0;
+      _calibrationElapsedMs = 0;
+    });
+
+    _calibrationTicker?.cancel();
+    _calibrationTicker = Timer.periodic(const Duration(milliseconds: 80), (_) {
+      if (!mounted || _calibrationPointStartMs == null) return;
+      setState(() {
+        _calibrationElapsedMs =
+            DateTime.now().millisecondsSinceEpoch - _calibrationPointStartMs!;
+      });
+    });
+
+    try {
+      await _cameraService.startStream(_onFrame);
+    } on CameraException catch (error) {
+      _calibrationTicker?.cancel();
+      if (!mounted) return;
+      setState(() => _isCalibrating = false);
+      CustomSnackBar.show(
+        context,
+        message: error.description ?? 'تعذر تشغيل الكاميرا. حاول مرة أخرى.',
+        state: SnackBarState.error,
+      );
+    }
+  }
+
+  Future<void> _handleCalibrationFrame(
+    CameraImage image,
+    CameraController camera,
+    int nowMs,
+  ) async {
+    final pointStartMs = _calibrationPointStartMs;
+    if (pointStartMs == null) return;
+    final elapsed = nowMs - pointStartMs;
+
+    // Ignore the first `_calibrationSettleMs` — the user's eyes are still
+    // moving toward the new target during that window.
+    if (elapsed >= _calibrationSettleMs) {
+      final raw = await _visionSession.estimateRawGaze(
+        image: image,
+        camera: camera.description,
+        deviceOrientation: camera.value.deviceOrientation,
+        nowMs: nowMs,
+      );
+      if (raw != null) _calibrationRawSamples.add(raw);
+    }
+
+    if (elapsed >= _calibrationPointDurationMs) {
+      _advanceCalibrationPoint();
+    }
+  }
+
+  void _advanceCalibrationPoint() {
+    if (_calibrationRawSamples.length >= 3) {
+      final target = _calibrationPoints[_calibrationIndex];
+      final average = _averageOffset(_calibrationRawSamples);
+      _visionSession.calibrator.addSample(average, target);
+    }
+    _calibrationRawSamples.clear();
+
+    final nextIndex = _calibrationIndex + 1;
+    if (nextIndex >= _calibrationPoints.length) {
+      unawaited(_finishCalibration());
+      return;
+    }
+
+    _calibrationPointStartMs = DateTime.now().millisecondsSinceEpoch;
+    if (!mounted) return;
+    setState(() {
+      _calibrationIndex = nextIndex;
+      _calibrationElapsedMs = 0;
+    });
+  }
+
+  Offset _averageOffset(List<Offset> points) {
+    var x = 0.0;
+    var y = 0.0;
+    for (final point in points) {
+      x += point.dx;
+      y += point.dy;
+    }
+    return Offset(x / points.length, y / points.length);
+  }
+
+  Future<void> _finishCalibration() async {
+    _calibrationTicker?.cancel();
+    await _cameraService.stopStream();
+    final fitted = _visionSession.calibrator.fit();
+
+    if (!mounted) return;
+    setState(() {
+      _isCalibrating = false;
+      _calibrationDone = true;
+    });
+
+    if (!fitted) {
+      CustomSnackBar.show(
+        context,
+        message:
+            'لم تكتمل المعايرة بشكل كافٍ. سيتم المتابعة بدون تصحيح إضافي — يمكنك إعادة المعايرة قبل الفحص.',
+        state: SnackBarState.warning,
+      );
     }
   }
 
@@ -337,15 +498,33 @@ class _ScannerScreenState extends State<ScannerScreen>
                   ),
                 ),
 
-                // ── Instructions (idle only) ─────────────────────────
-                if (!_isRecording && !_recordingDone)
+                // ── Instructions (idle / calibration) ────────────────
+                if (_isCalibrating)
                   Padding(
                     padding: EdgeInsets.symmetric(
                       horizontal: 24.w,
                       vertical: 6.h,
                     ),
                     child: Text(
-                      'ضع وجه الطفل في الإطار ثم اضغط ابدأ الفحص.\nسيتحرك هدف أصفر — اطلب من الطفل متابعته بعينيه.',
+                      'اطلب من الطفل متابعة النقطة الحمراء بعينيه فقط دون تحريك رأسه، لحد ما تختفي.',
+                      style: TextStyle(
+                        color: Colors.white60,
+                        fontSize: 13.sp,
+                        height: 1.5,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  )
+                else if (!_isRecording && !_recordingDone)
+                  Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 24.w,
+                      vertical: 6.h,
+                    ),
+                    child: Text(
+                      _calibrationDone
+                          ? 'ضع وجه الطفل في الإطار ثم اضغط ابدأ الفحص.\nسيتحرك هدف أصفر — اطلب من الطفل متابعته بعينيه.'
+                          : 'قبل الفحص، لازم نعاير الجهاز على عين الطفل مرة واحدة — اضغط ابدأ المعايرة.',
                       style: TextStyle(
                         color: Colors.white60,
                         fontSize: 13.sp,
@@ -385,8 +564,15 @@ class _ScannerScreenState extends State<ScannerScreen>
     Color color;
     IconData icon;
 
-    if (!_isRecording && !_recordingDone) {
-      text = 'ضع وجه الطفل في الإطار واضغط ابدأ';
+    if (_isCalibrating) {
+      text =
+          'معايرة ${_calibrationIndex + 1} من ${_calibrationPoints.length} — تابع النقطة الحمراء';
+      color = Colors.orangeAccent;
+      icon = Icons.center_focus_strong;
+    } else if (!_isRecording && !_recordingDone) {
+      text = _calibrationDone
+          ? 'ضع وجه الطفل في الإطار واضغط ابدأ'
+          : 'اضغط ابدأ المعايرة أولاً';
       color = Colors.white70;
       icon = Icons.info_outline;
     } else if (_isRecording) {
@@ -508,6 +694,20 @@ class _ScannerScreenState extends State<ScannerScreen>
                                     ),
                                   ),
                                 ),
+                              if (_isCalibrating)
+                                IgnorePointer(
+                                  child: CustomPaint(
+                                    painter: _CalibrationDotPainter(
+                                      point:
+                                          _calibrationPoints[_calibrationIndex],
+                                      holdProgress:
+                                          (_calibrationElapsedMs /
+                                                  _calibrationPointDurationMs)
+                                              .clamp(0.0, 1.0)
+                                              .toDouble(),
+                                    ),
+                                  ),
+                                ),
                               if (_isRecording)
                                 IgnorePointer(
                                   child: VisionDebugOverlay(
@@ -526,7 +726,7 @@ class _ScannerScreenState extends State<ScannerScreen>
                   const Center(child: CircularProgressIndicator()),
 
                 // Idle overlay
-                if (!_isRecording && !_recordingDone)
+                if (!_isRecording && !_recordingDone && !_isCalibrating)
                   Container(
                     color: Colors.black.withValues(alpha: 0.45),
                     child: Column(
@@ -673,11 +873,31 @@ class _ScannerScreenState extends State<ScannerScreen>
       );
     }
 
+    if (_isCalibrating) {
+      return ElevatedButton(
+        onPressed: null,
+        style: _buttonStyle(Colors.grey),
+        child: Text(
+          'معايرة... (${_calibrationIndex + 1}/${_calibrationPoints.length})',
+          style: TextStyles.font16WhiteSemiBold,
+        ),
+      );
+    }
+
     if (_isRecording) {
       return ElevatedButton(
         onPressed: null,
         style: _buttonStyle(Colors.grey),
         child: Text('جاري التسجيل...', style: TextStyles.font16WhiteSemiBold),
+      );
+    }
+
+    if (!_calibrationDone && !_recordingDone) {
+      return ElevatedButton.icon(
+        onPressed: _startCalibration,
+        style: _buttonStyle(Colors.blueAccent),
+        icon: const Icon(Icons.center_focus_strong, size: 20),
+        label: Text('ابدأ المعايرة', style: TextStyles.font16WhiteSemiBold),
       );
     }
 
@@ -707,14 +927,45 @@ class _ScannerScreenState extends State<ScannerScreen>
               style: TextStyle(color: Colors.white60, fontSize: 14.sp),
             ),
           ),
+          TextButton.icon(
+            onPressed: _startCalibration,
+            icon: Icon(
+              Icons.center_focus_strong,
+              color: Colors.white38,
+              size: 16.r,
+            ),
+            label: Text(
+              'إعادة المعايرة',
+              style: TextStyle(color: Colors.white38, fontSize: 13.sp),
+            ),
+          ),
         ],
       );
     }
 
-    return ElevatedButton(
-      onPressed: _startRecording,
-      style: _buttonStyle(Colors.blueAccent),
-      child: Text('ابدأ الفحص', style: TextStyles.font16WhiteSemiBold),
+    // Calibrated, not yet recorded.
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        ElevatedButton(
+          onPressed: _startRecording,
+          style: _buttonStyle(Colors.blueAccent),
+          child: Text('ابدأ الفحص', style: TextStyles.font16WhiteSemiBold),
+        ),
+        SizedBox(height: 10.h),
+        TextButton.icon(
+          onPressed: _startCalibration,
+          icon: Icon(
+            Icons.center_focus_strong,
+            color: Colors.white38,
+            size: 16.r,
+          ),
+          label: Text(
+            'إعادة المعايرة',
+            style: TextStyle(color: Colors.white38, fontSize: 13.sp),
+          ),
+        ),
+      ],
     );
   }
 
@@ -823,5 +1074,56 @@ class StimulusTargetPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant StimulusTargetPainter oldDelegate) {
     return oldDelegate.progress != progress;
+  }
+}
+
+/// Static red calibration dot with a hold-progress ring, matching the
+/// reference calibration script's "look at the red dot, hold Xs" UX.
+class _CalibrationDotPainter extends CustomPainter {
+  final Offset point;
+  final double holdProgress; // 0.0 → just appeared, 1.0 → about to advance
+
+  const _CalibrationDotPainter({
+    required this.point,
+    required this.holdProgress,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(point.dx * size.width, point.dy * size.height);
+
+    final glowPaint = Paint()
+      ..style = PaintingStyle.fill
+      ..color = Colors.redAccent.withValues(alpha: 0.15);
+    final dotPaint = Paint()
+      ..style = PaintingStyle.fill
+      ..color = Colors.redAccent;
+    final ringBgPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3
+      ..color = Colors.white24;
+    final ringFgPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3
+      ..strokeCap = StrokeCap.round
+      ..color = Colors.white.withValues(alpha: 0.9);
+
+    canvas.drawCircle(center, 26, glowPaint);
+    canvas.drawCircle(center, 8, dotPaint);
+
+    final ringRect = Rect.fromCircle(center: center, radius: 18);
+    canvas.drawCircle(center, 18, ringBgPaint);
+    canvas.drawArc(
+      ringRect,
+      -math.pi / 2,
+      2 * math.pi * holdProgress,
+      false,
+      ringFgPaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _CalibrationDotPainter old) {
+    return old.point != point || old.holdProgress != holdProgress;
   }
 }

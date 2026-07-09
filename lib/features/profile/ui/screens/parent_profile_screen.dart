@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:soliel/core/helpers/extensions.dart';
+import 'package:soliel/core/helpers/shared_pref_helper.dart';
 import 'package:soliel/core/helpers/spacing.dart';
 import 'package:soliel/core/routing/routes.dart';
 import 'package:soliel/core/theming/colors_manger.dart';
@@ -56,7 +57,13 @@ class ParentProfileScreen extends StatelessWidget {
             verticalSpace(20),
             const ProfileAppBar(title: 'حساب ولي الامر'),
             verticalSpace(30),
-            ProfileGreetingRow(name: report.childName),
+            ValueListenableBuilder<String>(
+              valueListenable: StorageHelper.childNameNotifier,
+              builder: (context, childName, _) {
+                final displayName = childName.isNotEmpty ? childName : report.childName;
+                return ProfileGreetingRow(name: displayName);
+              },
+            ),
             verticalSpace(30),
             _buildChildTrackingSection(context, report, avgProgress),
             verticalSpace(30),
@@ -78,7 +85,7 @@ class ParentProfileScreen extends StatelessWidget {
               ),
             ),
             verticalSpace(20),
-            _buildSuggestedGameCard(report),
+            _buildSuggestedGameCard(context, report),
             verticalSpace(30),
           ],
         ),
@@ -122,13 +129,19 @@ class ParentProfileScreen extends StatelessWidget {
                 ],
               ),
               verticalSpace(8),
-              Text(
-                report.childName,
-                textAlign: TextAlign.end,
-                style: TextStyles.font20BlackSemiBold.copyWith(
-                  fontSize: 22.sp,
-                  height: 1.2,
-                ),
+              ValueListenableBuilder<String>(
+                valueListenable: StorageHelper.childNameNotifier,
+                builder: (context, childName, _) {
+                  final displayName = childName.isNotEmpty ? childName : report.childName;
+                  return Text(
+                    displayName,
+                    textAlign: TextAlign.end,
+                    style: TextStyles.font20BlackSemiBold.copyWith(
+                      fontSize: 22.sp,
+                      height: 1.2,
+                    ),
+                  );
+                },
               ),
               GestureDetector(
                 onTap: () => context.pushNamed(Routes.editParentDataScreen),
@@ -250,21 +263,24 @@ class ParentProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildSuggestedGameCard(LatestReportResponse report) {
+  Widget _buildSuggestedGameCard(BuildContext context, LatestReportResponse report) {
     final String? weakest = report.weakestField;
     // Map weakest field to a game label and description
     final Map<String, Map<String, String>> gameMap = {
       'التفاعل الاجتماعي': {
         'title': 'لعبة التفاعل',
         'desc': 'بتتحفز الطفل علي معرفه لغه التفاعل مع الأشخاص الاخرين',
+        'url': 'https://ayat876.github.io/thegame3334/',
       },
       'التواصل': {
         'title': 'لعبة التواصل',
         'desc': 'تساعد الطفل على تطوير مهارات التواصل والتعبير عن نفسه',
+        'url': 'https://ayat876.github.io/ayat/',
       },
       'المهارات والسلوكيات': {
         'title': 'لعبة المهارات',
         'desc': 'تعزز المهارات السلوكية والحركية لدى الطفل',
+        'url': 'https://ayat876.github.io/roro/',
       },
     };
 
@@ -273,70 +289,79 @@ class ParentProfileScreen extends StatelessWidget {
         {
           'title': 'لعبة التفاعل',
           'desc': 'بتتحفز الطفل علي معرفه لغه التفاعل مع الأشخاص الاخرين',
+          'url': 'https://ayat876.github.io/thegame3334/',
         };
 
-    return Container(
-      padding: EdgeInsets.all(16.w),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20.r),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 15,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          Container(
-            padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 8.h),
-            decoration: BoxDecoration(
-              color: const Color(0xFF00B060),
-              borderRadius: BorderRadius.circular(15.r),
+    return GestureDetector(
+      onTap: () {
+        context.pushNamed(
+          Routes.startGameScreen,
+          arguments: game['url'],
+        );
+      },
+      child: Container(
+        padding: EdgeInsets.all(16.w),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20.r),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 15,
+              offset: const Offset(0, 8),
             ),
-            child: Text(
-              'ابدأ',
-              style: TextStyles.font14BlackSemiBold.copyWith(
-                color: Colors.white,
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 8.h),
+              decoration: BoxDecoration(
+                color: const Color(0xFF00B060),
+                borderRadius: BorderRadius.circular(15.r),
               ),
-            ),
-          ),
-          horizontalSpace(12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(game['title']!, style: TextStyles.font16BlackSemiBold),
-                Text(
-                  game['desc']!,
-                  textAlign: TextAlign.end,
-                  style: TextStyles.font12GreyMedium.copyWith(fontSize: 13.sp),
+              child: Text(
+                'ابدأ',
+                style: TextStyles.font14BlackSemiBold.copyWith(
+                  color: Colors.white,
                 ),
-              ],
-            ),
-          ),
-          horizontalSpace(16),
-          Container(
-            width: 80.r,
-            height: 80.r,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20.r),
-              gradient: const LinearGradient(
-                colors: [Color(0xFFE0C3FC), Color(0xFF8EC5FC)],
               ),
             ),
-            child: Center(
-              child: Image.asset(
-                'assets/images/profile_results.png',
-                width: 50.r,
-                height: 50.r,
+            horizontalSpace(12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(game['title']!, style: TextStyles.font16BlackSemiBold),
+                  Text(
+                    game['desc']!,
+                    textAlign: TextAlign.end,
+                    style: TextStyles.font12GreyMedium.copyWith(fontSize: 13.sp),
+                  ),
+                ],
               ),
             ),
-          ),
-        ],
+            horizontalSpace(16),
+            Container(
+              width: 80.r,
+              height: 80.r,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20.r),
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFE0C3FC), Color(0xFF8EC5FC)],
+                ),
+              ),
+              child: Center(
+                child: Image.asset(
+                  'assets/images/profile_results.png',
+                  width: 50.r,
+                  height: 50.r,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

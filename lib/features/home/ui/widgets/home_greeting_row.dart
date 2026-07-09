@@ -12,10 +12,10 @@ class HomeGreetingRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<String?>(
-      future: StorageHelper.getUserName(),
-      builder: (context, snapshot) {
-        final userName = snapshot.data ?? 'ولي الأمر';
+    return ValueListenableBuilder<String>(
+      valueListenable: StorageHelper.userNameNotifier,
+      builder: (context, userName, _) {
+        final displayName = userName.isNotEmpty ? userName : 'ولي الأمر';
         return Padding(
           padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 12.h),
           child: Row(
@@ -36,7 +36,7 @@ class HomeGreetingRow extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'مرحبا! $userName',
+                      'مرحبا! $displayName',
                       style: TextStyles.font14BlackSemiBold,
                     ),
                     SizedBox(height: 2.h),

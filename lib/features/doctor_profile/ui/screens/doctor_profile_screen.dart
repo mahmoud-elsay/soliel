@@ -2,6 +2,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:soliel/core/helpers/extensions.dart';
+import 'package:soliel/core/helpers/shared_pref_helper.dart';
 import 'package:soliel/core/helpers/spacing.dart';
 import 'package:soliel/core/routing/routes.dart';
 import 'package:soliel/core/theming/colors_manger.dart';
@@ -10,6 +11,7 @@ import 'package:soliel/core/widgets/app_text_button.dart';
 import 'package:soliel/features/doctor_profile/ui/widgets/doctor_info_card.dart';
 import 'package:soliel/features/doctor_profile/ui/widgets/doctor_profile_header.dart';
 import 'package:soliel/features/doctor_profile/ui/widgets/doctor_schedule_card.dart';
+
 import 'package:soliel/features/doctor_profile/ui/widgets/doctor_stats_card.dart';
 
 class DoctorProfileScreen extends StatelessWidget {
@@ -41,69 +43,121 @@ class DoctorProfileScreen extends StatelessWidget {
             },
           ),
         ),
-      body: SingleChildScrollView(
-        padding: EdgeInsets.all(16.w),
-        child: Column(
-          children: [
-            const DoctorProfileHeader(),
+        body: SingleChildScrollView(
+          padding: EdgeInsets.all(16.w),
+          child: Column(
+            children: [
+              const DoctorProfileHeader(),
 
-            verticalSpace(16),
+              verticalSpace(16),
 
-            const DoctorStatsCard(),
+              const DoctorStatsCard(),
 
-            verticalSpace(16),
+              verticalSpace(16),
 
-            const DoctorInfoCard(
-              title: 'نبذه تعريفيه',
-              content:
-                  'الدكتورة ياسمين خالد - استشارية تخاطب وتواصل\nمتخصصة في تطوير مهارات التواصل للأطفال ذوي التوحد باستخدام أحدث التقنيات المساعدة، حاصلة على شهادات دولية في تحليل السلوك التطبيقي (ABA) وتصميم البرامج الفردية.',
-            ),
+              const DoctorInfoCard(
+                title: 'نبذه تعريفيه',
+                content:
+                    'الدكتورة ياسمين خالد - استشارية تخاطب وتواصل\nمتخصصة في تطوير مهارات التواصل للأطفال ذوي التوحد باستخدام أحدث التقنيات المساعدة، حاصلة على شهادات دولية في تحليل السلوك التطبيقي (ABA) وتصميم البرامج الفردية.',
+              ),
 
-            verticalSpace(16),
+              verticalSpace(16),
 
-            const DoctorInfoCard(
-              title: 'التعليم',
-              content:
-                  'بكالوريوس التربية الخاصة جامعة الإسكندرية - كلية التربية\n2010-2014\nتقدير جيد جداً',
-              hasIcon: true,
-            ),
+              const DoctorInfoCard(
+                title: 'التعليم',
+                content:
+                    'بكالوريوس التربية الخاصة جامعة الإسكندرية - كلية التربية\n2010-2014\nتقدير جيد جداً',
+                hasIcon: true,
+              ),
 
-            verticalSpace(16),
+              verticalSpace(16),
 
-            const DoctorScheduleCard(),
+              const DoctorScheduleCard(),
 
-            verticalSpace(24),
+              verticalSpace(24),
 
-            AppTextButton(
-              onPressed: () {
-                context.pushNamed(Routes.editProfileScreen);
-              },
-              textButton: 'تعديل الملف الشخصي',
-              gradient: ColorsManager.primaryGradient,
-              height: 56.h,
-              borderRadius: 12.r,
-              margin: EdgeInsets.zero,
-            ),
+              AppTextButton(
+                onPressed: () {
+                  context.pushNamed(Routes.editProfileScreen);
+                },
+                textButton: 'تعديل الملف الشخصي',
+                gradient: ColorsManager.primaryGradient,
+                height: 56.h,
+                borderRadius: 12.r,
+                margin: EdgeInsets.zero,
+              ),
 
-            verticalSpace(16),
+              verticalSpace(16),
 
-            AppTextButton(
-              onPressed: () {
-                // Handle logout
-              },
-              textButton: 'تسجيل خروج',
-              backgroundColor: ColorsManager.lightBlue,
-              textColor: ColorsManager.black,
-              height: 56.h,
-              borderRadius: 12.r,
-              margin: EdgeInsets.zero,
-            ),
+              AppTextButton(
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    builder: (BuildContext context) {
+                      return AlertDialog(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16.r),
+                        ),
+                        title: Text(
+                          'تسجيل الخروج',
+                          style: TextStyles.font18RobotoBlackSemiBold,
+                          textAlign: TextAlign.right,
+                        ),
+                        content: Text(
+                          'هل أنت متأكد من رغبتك في تسجيل الخروج؟',
+                          style: TextStyles.font14RobotoGreySemiBold,
+                          textAlign: TextAlign.right,
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: Text(
+                              'إلغاء',
+                              style: TextStyle(
+                                color: ColorsManager.greyBorderColor,
+                                fontSize: 14.sp,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: () async {
+                              Navigator.pop(context); // Close the dialog
+                              await StorageHelper.clearAuthData();
+                              if (context.mounted) {
+                                context.pushNamedAndRemoveUntil(
+                                  Routes.selectRoleScreen,
+                                  predicate: (route) => false,
+                                );
+                              }
+                            },
+                            child: Text(
+                              'خروج',
+                              style: TextStyle(
+                                color: Colors.redAccent,
+                                fontSize: 14.sp,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  );
+                },
+                textButton: 'تسجيل خروج',
+                backgroundColor: ColorsManager.lightBlue,
+                textColor: ColorsManager.black,
+                height: 56.h,
+                borderRadius: 12.r,
+                margin: EdgeInsets.zero,
+              ),
 
-            verticalSpace(24),
-          ],
+              verticalSpace(24),
+            ],
+          ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 }

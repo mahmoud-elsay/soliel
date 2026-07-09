@@ -7,15 +7,37 @@ import 'package:soliel/core/theming/styles.dart';
 enum Gender { boy, girl }
 
 class GenderSelection extends StatefulWidget {
+  final Gender? initialGender;
   final Function(Gender) onGenderChanged;
-  const GenderSelection({super.key, required this.onGenderChanged});
+  const GenderSelection({
+    super.key,
+    this.initialGender,
+    required this.onGenderChanged,
+  });
 
   @override
   State<GenderSelection> createState() => _GenderSelectionState();
 }
 
 class _GenderSelectionState extends State<GenderSelection> {
-  Gender selectedGender = Gender.boy;
+  late Gender selectedGender;
+
+  @override
+  void initState() {
+    super.initState();
+    selectedGender = widget.initialGender ?? Gender.boy;
+  }
+
+  @override
+  void didUpdateWidget(covariant GenderSelection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialGender != oldWidget.initialGender &&
+        widget.initialGender != null) {
+      setState(() {
+        selectedGender = widget.initialGender!;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

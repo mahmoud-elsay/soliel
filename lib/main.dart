@@ -9,6 +9,7 @@ import 'package:soliel/soliel.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await setupGetIt();
+  await StorageHelper.initNotifiers();
 
   final initialRoute = await _getInitialRoute();
 

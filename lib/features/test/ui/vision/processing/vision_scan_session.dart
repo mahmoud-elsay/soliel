@@ -8,6 +8,7 @@ import 'package:soliel/features/test/ui/vision/detection/face_detector.dart';
 import 'package:soliel/features/test/ui/vision/detection/gaze_estimator.dart';
 import 'package:soliel/features/test/ui/vision/models/vision_frame.dart';
 import 'package:soliel/features/test/ui/vision/models/vision_state.dart';
+import 'package:soliel/features/test/ui/vision/processing/gaze_calibrator.dart';
 import 'package:soliel/features/test/ui/vision/processing/payload_validator.dart';
 import 'package:soliel/features/test/ui/vision/processing/quality_analyzer.dart';
 import 'package:soliel/features/test/ui/vision/processing/sample_collector.dart';
@@ -26,8 +27,15 @@ class VisionScanSession {
   final TemporalVisionFilter _temporalFilter = TemporalVisionFilter();
   final ScanPayloadValidator _payloadValidator = ScanPayloadValidator();
 
+  /// Fitted per-user linear mapping from raw estimated gaze to real screen
+  /// coordinates. Populated by a calibration phase before the real scan.
+  /// Exposed publicly so the UI can drive `reset()`/`fit()` around a
+  /// calibration sequence.
+  final GazeCalibrator calibrator = GazeCalibrator();
+
   VisionState _state = VisionState.initial();
   VisionFrame? _lastUsableFrame;
+  VisionFrame? _lastCalibrationFrame;
   int? _lastProcessedMs;
   int? _lastFaceSeenMs;
   int? _lastFpsTickMs;
@@ -122,7 +130,11 @@ class VisionScanSession {
       return _publishRejected(estimated, nowMs);
     }
 
-    final filtered = _temporalFilter.apply(estimated);
+    final calibrated = calibrator.isCalibrated
+        ? estimated.copyWith(gaze: calibrator.apply(estimated.gaze!))
+        : estimated;
+
+    final filtered = _temporalFilter.apply(calibrated);
     _lastUsableFrame = filtered;
     final sample = _sampleCollector.considerFrame(
       frame: filtered,
@@ -171,6 +183,46 @@ class VisionScanSession {
     });
 
     return _state;
+  }
+
+  /// Runs face detection + gaze estimation for a single frame, bypassing the
+  /// sample collector and the main [state]. Used only during the calibration
+  /// phase, where we need a raw (uncalibrated, on purpose) gaze estimate to
+  /// pair with a known on-screen target point.
+  Future<Offset?> estimateRawGaze({
+    required CameraImage image,
+    required CameraDescription camera,
+    required DeviceOrientation deviceOrientation,
+    required int nowMs,
+  }) async {
+    final converted = _converter.convert(
+      image: image,
+      camera: camera,
+      deviceOrientation: deviceOrientation,
+    );
+    if (converted == null) return null;
+
+    final detection = await _faceDetector.detect(converted);
+    final face = detection.primaryFace;
+    if (face == null) return null;
+
+    final estimated = _gazeEstimator.estimate(
+      face: face,
+      faceCount: detection.faces.length,
+      image: converted,
+      camera: camera,
+      timestampMs: nowMs,
+      previousFrame: _lastCalibrationFrame,
+    );
+
+    if (!estimated.isUsable) return null;
+
+    _lastCalibrationFrame = estimated;
+    return estimated.gaze;
+  }
+
+  void resetCalibrationHistory() {
+    _lastCalibrationFrame = null;
   }
 
   ScanPayloadValidationResult validatePayload({

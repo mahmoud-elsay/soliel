@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:soliel/core/helpers/app_validation.dart';
+import 'package:soliel/core/helpers/shared_pref_helper.dart';
 import 'package:soliel/core/helpers/spacing.dart';
 import 'package:soliel/core/theming/colors_manger.dart';
 import 'package:soliel/core/theming/styles.dart';
@@ -27,6 +28,33 @@ class _EditParentDataFormState extends State<EditParentDataForm> {
   bool _isObscureText = true;
   bool _isConfirmObscureText = true;
   String _selectedRole = 'اب'; // Default to Father
+
+  @override
+  void initState() {
+    super.initState();
+    _loadParentData();
+  }
+
+  Future<void> _loadParentData() async {
+    final name = await StorageHelper.getUserName() ?? '';
+    final email = await StorageHelper.getEmail() ?? '';
+    final phone = await StorageHelper.getString('parent_phone') ?? '';
+    final relation = await StorageHelper.getString('parent_relation') ?? '';
+    final role = await StorageHelper.getString('parent_role') ?? 'اب';
+    final password = await StorageHelper.getSecureString('parent_password') ?? '';
+
+    if (mounted) {
+      setState(() {
+        _nameController.text = name;
+        _emailController.text = email;
+        _phoneController.text = phone;
+        _relationController.text = relation;
+        _selectedRole = role;
+        _passwordController.text = password;
+        _confirmPasswordController.text = password;
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -108,9 +136,22 @@ class _EditParentDataFormState extends State<EditParentDataForm> {
           verticalSpace(32),
           AppTextButton(
             textButton: 'تأكيد',
-            onPressed: () {
+            onPressed: () async {
               if (_formKey.currentState!.validate()) {
-                // Submit
+                await StorageHelper.saveUserName(_nameController.text);
+                await StorageHelper.saveEmail(_emailController.text);
+                await StorageHelper.setValue('parent_phone', _phoneController.text);
+                await StorageHelper.setValue('parent_relation', _relationController.text);
+                await StorageHelper.setValue('parent_role', _selectedRole);
+                if (_passwordController.text.isNotEmpty) {
+                  await StorageHelper.setSecureString('parent_password', _passwordController.text);
+                }
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('تم حفظ تعديلات ولي الأمر بنجاح')),
+                  );
+                  Navigator.pop(context);
+                }
               }
             },
             gradient: ColorsManager.primaryGradient,

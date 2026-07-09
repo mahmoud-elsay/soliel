@@ -31,6 +31,14 @@ class StorageHelper {
     if (kDebugMode) debugPrint('Storage → SharedPreferences cleared');
   }
 
+  static final ValueNotifier<String> userNameNotifier = ValueNotifier<String>('');
+  static final ValueNotifier<String> childNameNotifier = ValueNotifier<String>('');
+
+  static Future<void> initNotifiers() async {
+    userNameNotifier.value = await getUserName() ?? '';
+    childNameNotifier.value = await getString('child_name') ?? '';
+  }
+
   // ────────────────────────────────────────────
   //  Generic typed write / read
   // ────────────────────────────────────────────
@@ -59,6 +67,12 @@ class StorageHelper {
             'Storage → Unsupported type for key $key: ${value.runtimeType}',
           );
         }
+    }
+
+    if (key == 'child_name' && value is String) {
+      childNameNotifier.value = value;
+    } else if (key == keyUserName && value is String) {
+      userNameNotifier.value = value;
     }
   }
 

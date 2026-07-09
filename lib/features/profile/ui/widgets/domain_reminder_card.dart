@@ -1,29 +1,40 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:soliel/core/helpers/spacing.dart';
-import 'package:soliel/core/theming/colors_manger.dart';
 import 'package:soliel/core/theming/styles.dart';
 
-enum ReminderStatus { completed, play }
+enum ReminderStatus { completed, notPassed }
 
 class DomainReminderCard extends StatelessWidget {
   final String title;
+  final double score;
   final String date;
-  final String time;
   final ReminderStatus status;
   final VoidCallback onTap;
 
   const DomainReminderCard({
     super.key,
     required this.title,
+    required this.score,
     required this.date,
-    required this.time,
     required this.status,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
+    final isPassed = status == ReminderStatus.completed;
+
+    final Color iconBg =
+        isPassed ? const Color(0xFFE6F7EF) : const Color(0xFFFFF0F0);
+    final Color iconColor =
+        isPassed ? const Color(0xFF00AA5B) : const Color(0xFFE53935);
+    final Color labelColor =
+        isPassed ? const Color(0xFF00AA5B) : const Color(0xFFE53935);
+    final IconData icon =
+        isPassed ? Icons.check_circle_outline : Icons.cancel_outlined;
+    final String label = isPassed ? 'اجتازه' : 'لم يجتازه';
+
     return Container(
       margin: EdgeInsets.only(bottom: 16.h),
       padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
@@ -31,7 +42,9 @@ class DomainReminderCard extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(15.r),
         border: Border.all(
-          color: ColorsManager.greyBorderColor.withOpacity(0.5),
+          color: isPassed
+              ? const Color(0xFF00AA5B).withOpacity(0.25)
+              : const Color(0xFFE53935).withOpacity(0.25),
         ),
         boxShadow: [
           BoxShadow(
@@ -43,59 +56,68 @@ class DomainReminderCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // Action Text
+          // ── Action / Status Label ──────────────────────────
           GestureDetector(
             onTap: onTap,
-            child: Text(
-              status == ReminderStatus.completed ? 'اجتازه' : 'لعب',
-              style: TextStyles.font14BlackSemiBold.copyWith(
-                color: status == ReminderStatus.completed
-                    ? const Color(0xFF00AA5B)
-                    : Colors.black,
+            child: Container(
+              padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 6.h),
+              decoration: BoxDecoration(
+                color: iconBg,
+                borderRadius: BorderRadius.circular(8.r),
+              ),
+              child: Text(
+                label,
+                style: TextStyles.font14BlackSemiBold.copyWith(
+                  color: labelColor,
+                  fontSize: 12.sp,
+                ),
               ),
             ),
           ),
+
           const Spacer(),
-          // Details
+
+          // ── Domain Title + Date + Score ────────────────────
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
                 title,
                 style: TextStyles.font16BlackSemiBold.copyWith(
-                  fontSize: 18.sp,
+                  fontSize: 16.sp,
                   color: const Color(0xFF1E232C),
                 ),
               ),
               verticalSpace(4),
               Text(
-                time.isNotEmpty ? 'تاريخ $date الساعه $time' : 'تاريخ $date',
+                'تاريخ $date',
                 style: TextStyles.font14GreyMedium.copyWith(
-                  fontSize: 14.sp,
+                  fontSize: 13.sp,
                   color: const Color(0xFF6A707C),
+                ),
+              ),
+              verticalSpace(4),
+              Text(
+                'النسبة: ${score.toStringAsFixed(1)}%',
+                style: TextStyles.font14GreyMedium.copyWith(
+                  fontSize: 12.sp,
+                  color: labelColor,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ],
           ),
+
           horizontalSpace(12),
-          // Icon
+
+          // ── Status Icon ────────────────────────────────────
           Container(
             padding: EdgeInsets.all(10.w),
             decoration: BoxDecoration(
-              color: status == ReminderStatus.completed
-                  ? const Color(0xFFE6F7EF)
-                  : const Color(0xFFEBF2FA),
+              color: iconBg,
               borderRadius: BorderRadius.circular(12.r),
             ),
-            child: Icon(
-              status == ReminderStatus.completed
-                  ? Icons.check_circle_outline
-                  : Icons.videogame_asset_outlined,
-              color: status == ReminderStatus.completed
-                  ? const Color(0xFF00AA5B)
-                  : const Color(0xFF1E4F89),
-              size: 24.sp,
-            ),
+            child: Icon(icon, color: iconColor, size: 24.sp),
           ),
         ],
       ),

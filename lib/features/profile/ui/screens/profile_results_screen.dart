@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:soliel/core/helpers/shared_pref_helper.dart';
 import 'package:soliel/core/helpers/spacing.dart';
 import 'package:soliel/core/theming/colors_manger.dart';
 import 'package:soliel/core/theming/styles.dart';
@@ -39,7 +40,13 @@ class ProfileResultsScreen extends StatelessWidget {
 
                 if (!hasEyeScan && !hasQuestionnaire) {
                   return _buildShell(
-                    greeting: ProfileGreetingRow(name: report.childName),
+                    greeting: ValueListenableBuilder<String>(
+                      valueListenable: StorageHelper.childNameNotifier,
+                      builder: (context, childName, _) {
+                        final displayName = childName.isNotEmpty ? childName : report.childName;
+                        return ProfileGreetingRow(name: displayName);
+                      },
+                    ),
                     body: Center(
                       child: Padding(
                         padding: EdgeInsets.symmetric(vertical: 40.h),
@@ -61,7 +68,13 @@ class ProfileResultsScreen extends StatelessWidget {
                     : (report.eyeScan?.date ?? '');
 
                 return _buildShell(
-                  greeting: ProfileGreetingRow(name: report.childName),
+                  greeting: ValueListenableBuilder<String>(
+                    valueListenable: StorageHelper.childNameNotifier,
+                    builder: (context, childName, _) {
+                      final displayName = childName.isNotEmpty ? childName : report.childName;
+                      return ProfileGreetingRow(name: displayName);
+                    },
+                  ),
                   body: Column(
                     children: [
                       // Eye scan card

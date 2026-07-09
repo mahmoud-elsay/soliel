@@ -51,12 +51,16 @@ class _ChildProfileScreenState extends State<ChildProfileScreen> {
                 verticalSpace(20),
                 _buildHeader(context),
                 verticalSpace(30),
-                ProfileGreetingRow(
-                  name: _parentName.isNotEmpty
-                      ? 'مرحبا! $_parentName'
-                      : null,
-                  subtitle: 'تابع حاله طفلك اليوم',
-                  imagePath: 'assets/images/child_profile_avatar.png',
+                ValueListenableBuilder<String>(
+                  valueListenable: StorageHelper.userNameNotifier,
+                  builder: (context, userName, _) {
+                    final displayName = userName.isNotEmpty ? userName : _parentName;
+                    return ProfileGreetingRow(
+                      name: displayName.isNotEmpty ? 'مرحبا! $displayName' : null,
+                      subtitle: 'تابع حاله طفلك اليوم',
+                      imagePath: 'assets/images/child_profile_avatar.png',
+                    );
+                  },
                 ),
                 verticalSpace(40),
                 _buildCardsGrid(context),
